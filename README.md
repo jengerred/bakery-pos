@@ -5,8 +5,8 @@ A Modern, Modular Point‑of‑Sale Built for a Full Bakery Business Suite <br>
 ![Next.js](https://img.shields.io/badge/Next.js-14-black)
 ![Stripe](https://img.shields.io/badge/Stripe-Integrated-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
-
+![License](https://img.shields.io/badge/license-MIT-lightgrey) <br>
+<br>
 
 ## 📌 Repository Description
 This project is a fully functional Point‑of‑Sale (POS) system built with Next.js, React, TypeScript, and Stripe. It is designed as the first module in a larger, fully integrated Bakery Business Suite that will eventually include:
@@ -59,7 +59,7 @@ Deploy to Vercel + Stripe live mode <br>
 Add new modules, fix bugs, optimize performance <br>
  <br>
 
-### ✨ Feature Checklist (Current MVP)  <br>
+## ✨ Feature Checklist (Current MVP)  <br>
  
 #### 🛒 Product & Cart 
 ✅ Product grid
@@ -121,7 +121,7 @@ Add new modules, fix bugs, optimize performance <br>
 <br>
 
 ## 🚀 Roadmap (Upcoming Features)
-### 🔹 Phase 2 — Inventory System
+#### 🔹 Phase 2 — Inventory System
 * Ingredient tracking
 
 * Auto‑deduct inventory
@@ -131,7 +131,7 @@ Add new modules, fix bugs, optimize performance <br>
 * Supplier management 
 <br>
 
-### 🔹 Phase 3 — Customer Accounts & Loyalty
+#### 🔹 Phase 3 — Customer Accounts & Loyalty
 * Customer login
 
 * Guest checkout
@@ -145,7 +145,7 @@ Add new modules, fix bugs, optimize performance <br>
 * Customer order history <br>
   <br>
 
-### 🔹 Phase 4 — Online Ordering (User‑Facing Website)
+#### 🔹 Phase 4 — Online Ordering (User‑Facing Website)
 * Menu browsing
 
 * Cart + checkout
@@ -159,7 +159,7 @@ Add new modules, fix bugs, optimize performance <br>
 * Sync to POS + inventory <br>
   <br>
 
-### 🔹 Phase 5 — In‑Store Kiosk Ordering
+#### 🔹 Phase 5 — In‑Store Kiosk Ordering
 * Touch‑friendly kiosk UI
 
 * Guest or logged‑in ordering
@@ -171,7 +171,7 @@ Add new modules, fix bugs, optimize performance <br>
 * Sync to POS + KDS <br>
   <br>
 
-### 🔹 Phase 6 — Employee System
+#### 🔹 Phase 6 — Employee System
 * Employee login
 
 * Role‑based permissions
@@ -181,7 +181,7 @@ Add new modules, fix bugs, optimize performance <br>
 * Shift reports <br>
 <br>
 
-### 🔹 Phase 7 — Manager Dashboard
+#### 🔹 Phase 7 — Manager Dashboard
 * Sales analytics
 
 * Product performance
@@ -191,7 +191,7 @@ Add new modules, fix bugs, optimize performance <br>
 * Exportable reports <br>
   <br>
 
-### 🔹 Phase 8 — Cloud Backend
+#### 🔹 Phase 8 — Cloud Backend
 * Move to Postgres/Supabase
 
 * Multi‑terminal sync
@@ -201,7 +201,7 @@ Add new modules, fix bugs, optimize performance <br>
 * Centralized database <br>
 <br>
 
-### 🔹 Phase 9 — Stripe Terminal Hardware
+#### 🔹 Phase 9 — Stripe Terminal Hardware
 * Real card reader support
 
 * Tap / chip / swipe
@@ -213,28 +213,28 @@ Add new modules, fix bugs, optimize performance <br>
 ## 🏢 Full Business Suite Vision
 A high‑level overview of the final integrated system. <br>
 
-### 🧾 POS (Current Module)
+#### 🧾 POS (Current Module)
 Cashier‑facing POS with payments, receipts, and order history. <br>
 <br>
-### 🛒 Online Ordering (Future)
+#### 🛒 Online Ordering (Future)
 Customer‑facing website for pickup/delivery with loyalty integration. <br>
 <br>
-### 🏬 In‑Store Kiosk (Future)
+#### 🏬 In‑Store Kiosk (Future)
 Touch‑optimized self‑service ordering at the physical bakery.<br>
 <br>
-### 📦 Inventory Management (Future)
+#### 📦 Inventory Management (Future)
 Ingredient tracking, auto‑deduction, and supplier management.<br>
 <br>
-### 👥 Employee Management (Future)
+#### 👥 Employee Management (Future)
 Login, permissions, and time tracking.<br>
 <br>
-### 📊 Manager Dashboard (Future)
+#### 📊 Manager Dashboard (Future)
 Sales analytics, product performance, and real‑time metrics.<br>
 <br>
-### 🧑‍🍳 Kitchen Display System (Future)
+#### 🧑‍🍳 Kitchen Display System (Future)
 Real‑time order queue and prep workflow.<br>
 <br>
-### 🌐 Cloud Sync (Future)
+#### 🌐 Cloud Sync (Future)
 Multi‑terminal support and centralized database. <br>
 <br>
 
