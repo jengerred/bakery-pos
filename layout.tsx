@@ -21,6 +21,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { useState } from "react";
 import CustomerLookupModal from "./components/customer/CustomerLookupModal"; 
 import { User } from "./types/user";
+import { CartProvider } from "./context/CartContext";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -34,6 +35,7 @@ export default function POSLayout({ children }: { children: React.ReactNode }) {
     <Elements stripe={stripePromise}>
       <OrderHistoryProvider>
         <CustomerProvider>
+           <CartProvider>
           {/* 
             POS Top Bar
             -----------
@@ -63,6 +65,7 @@ export default function POSLayout({ children }: { children: React.ReactNode }) {
               throw new Error("Function not implemented.");
             } } />
           )}
+          </CartProvider>
         </CustomerProvider>
       </OrderHistoryProvider>
     </Elements>

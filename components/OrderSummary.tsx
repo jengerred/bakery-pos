@@ -1,24 +1,16 @@
 "use client";
 
-/* -------------------------------------------------------
-   🧺 Product Type
-   Used to type each item in the order.
-------------------------------------------------------- */
 import { Product } from "@/app/pos/lib/products";
+import { useCustomer } from "@/app/pos/context/CustomerContext";
 
 /* -------------------------------------------------------
    🧾 OrderSummary
-   Displays the current cart:
-   - Product name
-   - Line total
-   - Quantity controls
-   - Remove button
 ------------------------------------------------------- */
 type OrderSummaryProps = {
   order: { product: Product; quantity: number }[];
-  onIncrease: (productId: number) => void; // Increase quantity
-  onDecrease: (productId: number) => void; // Decrease quantity
-  onRemove: (productId: number) => void;   // Remove item entirely
+  onIncrease: (productId: number) => void;
+  onDecrease: (productId: number) => void;
+  onRemove: (productId: number) => void;
 };
 
 export default function OrderSummary({
@@ -27,22 +19,29 @@ export default function OrderSummary({
   onDecrease,
   onRemove,
 }: OrderSummaryProps) {
+
+  // ⭐ FIX: Get customer from context
+  const { customer } = useCustomer();
+
   return (
     <div className="p-4 border rounded-lg bg-white shadow">
       <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
 
-      {/* -------------------------------------------------------
-         🪹 EMPTY STATE
-      ------------------------------------------------------- */}
+      {/* ⭐ FIX: Show customer name ABOVE the list */}
+      {customer?.name && (
+        <p className="text-sm text-gray-700 mb-4">
+          <strong>Customer:</strong> {customer.name}
+        </p>
+      )}
+
+      {/* Empty state */}
       {order.length === 0 && (
         <p className="text-gray-500">No items added yet.</p>
       )}
 
-      {/* -------------------------------------------------------
-         🛒 ORDER ITEMS
-      ------------------------------------------------------- */}
+      {/* Order items */}
       <ul className="space-y-4">
-        {order.map((item) => (
+        {order.map((item: { product: Product; quantity: number }) => (
           <li
             key={item.product.id}
             className="flex justify-between items-center"
@@ -58,7 +57,6 @@ export default function OrderSummary({
             {/* Quantity controls */}
             <div className="flex items-center space-x-2">
 
-              {/* Decrease */}
               <button
                 onClick={() => onDecrease(item.product.id)}
                 className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
@@ -66,10 +64,8 @@ export default function OrderSummary({
                 –
               </button>
 
-              {/* Quantity */}
               <span className="w-8 text-center">{item.quantity}</span>
 
-              {/* Increase */}
               <button
                 onClick={() => onIncrease(item.product.id)}
                 className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
@@ -77,7 +73,6 @@ export default function OrderSummary({
                 +
               </button>
 
-              {/* Remove */}
               <button
                 onClick={() => onRemove(item.product.id)}
                 className="px-2 py-1 text-red-600 hover:text-red-800"

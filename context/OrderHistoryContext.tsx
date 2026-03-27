@@ -37,8 +37,7 @@ export type CompletedOrder = {
   timestamp: number;              // When the order was completed
 
   customerId: string | null;
-customerName: string | null;
-
+  customerName: string | null;
 };
 
 /* -------------------------------------------------------

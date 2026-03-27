@@ -2,6 +2,9 @@
 
 import type { User } from "../types/user";
 
+// TODO: Replace with MongoDB query
+
+
 export const userService = {
   async find(value: string): Promise<User | null> {
     // placeholder for MongoDB later

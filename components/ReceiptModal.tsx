@@ -49,10 +49,14 @@ export default function ReceiptModal({ order, onClose }: ReceiptModalProps) {
          {/* -------------------------------------------------------
           🧍 CUSTOMER NAME (if available)
         ------------------------------------------------------- */}
-        <p className="text-sm text-gray-700 mb-4">
-          <strong>Customer:</strong>{" "}
-          {order.customerName ? order.customerName : "Guest"}
-        </p>
+       
+
+          {order.customerName && (
+            <p className="text-sm text-gray-700 mb-4">
+              <strong>Customer:</strong> {order.customerName}
+            </p>
+          )}
+
 
 
         {/* -------------------------------------------------------
