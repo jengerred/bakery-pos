@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 /* -------------------------------------------------------
    🧱 UI Components
 ------------------------------------------------------- */
@@ -10,22 +12,24 @@ import CheckoutModal from "./CheckoutModal";
 import ReceiptModal from "./ReceiptModal";
 import OrderHistory from "./OrderHistory";
 
+/* ⭐ NEW — Customer Flow Modals */
+import RewardsPromptModal from "./customer/RewardsPromptModal";
+import CustomerLookupModal from "./customer/CustomerLookupModal";
+import QuickCreateCustomerModal from "./customer/QuickCreateCustomerModal";
+
+/* ⭐ NEW — Customer Context */
+import { useCustomer } from "../context/CustomerContext";
+
 /* -------------------------------------------------------
    🧾 Types & Helpers
 ------------------------------------------------------- */
 import type { CompletedOrder } from "../context/OrderHistoryContext";
 import { calculateTotals } from "../lib/calcTotals";
 import { Product } from "../lib/products";
+import type { User } from "../types/user";
 
 /* -------------------------------------------------------
    🧩 Props
-   POSGrid orchestrates the entire POS layout:
-   - Product list
-   - Cart summary
-   - Totals
-   - Checkout modal
-   - Receipt modal
-   - Order history
 ------------------------------------------------------- */
 type Props = {
   order: { product: Product; quantity: number }[];
@@ -53,14 +57,7 @@ type Props = {
 };
 
 /* -------------------------------------------------------
-   🧱 POSGrid
-   The main layout container for the POS interface.
-   Handles:
-   - Product browsing
-   - Cart management
-   - Checkout flow
-   - Receipt display
-   - Order history
+   🧱 POSGrid — Main POS Layout
 ------------------------------------------------------- */
 export default function POSGrid({
   order,
@@ -80,20 +77,63 @@ export default function POSGrid({
   terminal,
   addOrder,
 }: Props) {
+
+  /* ⭐ NEW — Customer Context */
+  const { customer, setCustomer } = useCustomer();
+
+  /* ⭐ NEW — Local modal state */
+  const [showRewardsPrompt, setShowRewardsPrompt] = useState(false);
+  const [showLookup, setShowLookup] = useState(false);
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
+
+  const [lookupValue, setLookupValue] = useState("");
+
+  /* -------------------------------------------------------
+     ⭐ Begin Checkout Flow
+  ------------------------------------------------------- */
+  const handleBeginCheckout = () => {
+    setShowRewardsPrompt(true);
+  };
+
+  /* -------------------------------------------------------
+     ⭐ When lookup finds a customer
+  ------------------------------------------------------- */
+  const handleCustomerFound = (user: User) => {
+    setCustomer(user);
+    setShowLookup(false);
+    setShowRewardsPrompt(false);
+    setShowCheckout(true);
+  };
+
+  /* -------------------------------------------------------
+     ⭐ When lookup fails → go to quick create
+  ------------------------------------------------------- */
+  const handleCustomerNotFound = (value: string) => {
+    setLookupValue(value);
+    setShowLookup(false);
+    setShowQuickCreate(true);
+  };
+
+  /* -------------------------------------------------------
+     ⭐ After quick create
+  ------------------------------------------------------- */
+  const handleCustomerCreated = (user: User) => {
+    setCustomer(user);
+    setShowQuickCreate(false);
+    setShowRewardsPrompt(false);
+    setShowCheckout(true);
+  };
+
   return (
     <div className="grid grid-cols-2 gap-6">
 
-      {/* -------------------------------------------------------
-         🛒 PRODUCT LIST
-      ------------------------------------------------------- */}
+      {/* 🛒 PRODUCT LIST */}
       <section className="p-4 border rounded-lg bg-white shadow">
         <h2 className="text-xl font-semibold mb-4">Products</h2>
         <ProductList onAdd={openProductModal} />
       </section>
 
-      {/* -------------------------------------------------------
-         📦 ORDER SUMMARY
-      ------------------------------------------------------- */}
+      {/* 📦 ORDER SUMMARY */}
       <OrderSummary
         order={order}
         onIncrease={handleIncrease}
@@ -101,35 +141,67 @@ export default function POSGrid({
         onRemove={handleRemove}
       />
 
-      {/* -------------------------------------------------------
-         💵 TOTALS
-      ------------------------------------------------------- */}
+      {/* 💵 TOTALS */}
       <OrderTotals order={order} />
 
-      {/* -------------------------------------------------------
-         💳 CHECKOUT BUTTON
-      ------------------------------------------------------- */}
+      {/* 💳 CHECKOUT BUTTON */}
       <button
-        onClick={() => setShowCheckout(true)}
+        onClick={handleBeginCheckout}
         className="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
       >
         Checkout
       </button>
 
-      {/* -------------------------------------------------------
-         🧾 CHECKOUT MODAL
-         Handles payment + creates CompletedOrder
-      ------------------------------------------------------- */}
+      {/* ⭐ Rewards Prompt */}
+      {showRewardsPrompt && (
+        <RewardsPromptModal
+          onLookup={() => {
+            setShowRewardsPrompt(false);
+            setShowLookup(true);
+          }}
+          onCreate={() => {
+            setShowRewardsPrompt(false);
+            setShowQuickCreate(true);
+          }}
+          onGuest={() => {
+            setCustomer(null);
+            setShowRewardsPrompt(false);
+            setShowCheckout(true);
+          }}
+        />
+      )}
+
+      {/* ⭐ Lookup Modal */}
+      {showLookup && (
+        <CustomerLookupModal
+          onFound={handleCustomerFound}
+          onNotFound={handleCustomerNotFound}
+          onClose={() => setShowLookup(false)}
+        />
+      )}
+
+      {/* ⭐ Quick Create Modal */}
+      {showQuickCreate && (
+        <QuickCreateCustomerModal
+          initialValue={lookupValue}
+          onCreate={handleCustomerCreated}
+          onClose={() => setShowQuickCreate(false)}
+        />
+      )}
+
+      {/* 🧾 CHECKOUT MODAL */}
       {showCheckout && (
         <CheckoutModal
           order={order}
           terminal={terminal}
           onClose={() => setShowCheckout(false)}
           onComplete={(paymentData) => {
-            // Calculate totals
             const { subtotal, tax, total } = calculateTotals(order);
 
-            // Build completed order object
+            /* -------------------------------------------------------
+               ⭐ BUILD COMPLETED ORDER
+               This is where customerId + customerName MUST be added.
+            ------------------------------------------------------- */
             const completed: CompletedOrder = {
               id: crypto.randomUUID(),
               items: order,
@@ -142,23 +214,20 @@ export default function POSGrid({
               changeGiven: paymentData.changeGiven,
               stripePaymentId: paymentData.stripePaymentId,
               timestamp: Date.now(),
+              customerId: customer?.id ?? null,
+              customerName: customer?.name ?? null,
             };
 
-            // Save to history + show receipt
             addOrder(completed);
             setLastOrder(completed);
 
-            // Reset cart + close modal
             setOrder([]);
             setShowCheckout(false);
           }}
         />
       )}
 
-      {/* -------------------------------------------------------
-         🧾 RECEIPT MODAL
-         Shown after a successful checkout
-      ------------------------------------------------------- */}
+      {/* 🧾 RECEIPT MODAL */}
       {lastOrder && (
         <ReceiptModal
           order={lastOrder}
@@ -166,9 +235,7 @@ export default function POSGrid({
         />
       )}
 
-      {/* -------------------------------------------------------
-         📜 ORDER HISTORY
-      ------------------------------------------------------- */}
+      {/* 📜 ORDER HISTORY */}
       <OrderHistory />
     </div>
   );

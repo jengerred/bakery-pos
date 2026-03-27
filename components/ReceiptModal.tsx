@@ -44,6 +44,16 @@ export default function ReceiptModal({ order, onClose }: ReceiptModalProps) {
            🧾 HEADER
         ------------------------------------------------------- */}
         <h2 className="text-xl font-semibold mb-4">Receipt</h2>
+        
+
+         {/* -------------------------------------------------------
+          🧍 CUSTOMER NAME (if available)
+        ------------------------------------------------------- */}
+        <p className="text-sm text-gray-700 mb-4">
+          <strong>Customer:</strong>{" "}
+          {order.customerName ? order.customerName : "Guest"}
+        </p>
+
 
         {/* -------------------------------------------------------
            📅 ORDER INFO
@@ -55,6 +65,7 @@ export default function ReceiptModal({ order, onClose }: ReceiptModalProps) {
           {new Date(order.timestamp).toLocaleString()}
         </p>
 
+       
         {/* -------------------------------------------------------
            🛒 LINE ITEMS
         ------------------------------------------------------- */}

@@ -22,6 +22,11 @@ import { Product } from "./products";
    - cart items
    - calculated totals
    - payment details (cash, card, manual, terminal)
+
+   NOTE:
+   - This helper does NOT know the current customer.
+   - It returns customerId/customerName as null by default.
+   - POSGrid (with CustomerContext) can overwrite them.
 ------------------------------------------------------- */
 export function createCompletedOrder(
   order: { product: Product; quantity: number }[],
@@ -32,16 +37,20 @@ export function createCompletedOrder(
 
   // Construct the final CompletedOrder object
   return {
-    id: crypto.randomUUID(),          // Unique order ID
-    items: order,                     // Cart items
-    subtotal,                         // Pre‑tax amount
-    tax,                              // Calculated tax
-    total,                            // Final total
-    paymentType: paymentData.paymentType,           // cash | credit | debit
-    cardEntryMethod: paymentData.cardEntryMethod,   // manual | terminal
-    cashTendered: paymentData.cashTendered,         // For cash payments
-    changeGiven: paymentData.changeGiven,           // For cash payments
-    stripePaymentId: paymentData.stripePaymentId,   // For card payments
-    timestamp: Date.now(),            // When the order was completed
+    id: crypto.randomUUID(),                 // Unique order ID
+    items: order,                            // Cart items
+    subtotal,                                // Pre‑tax amount
+    tax,                                     // Calculated tax
+    total,                                   // Final total
+    paymentType: paymentData.paymentType,    // cash | credit | debit
+    cardEntryMethod: paymentData.cardEntryMethod, // manual | terminal
+    cashTendered: paymentData.cashTendered,  // For cash payments
+    changeGiven: paymentData.changeGiven,    // For cash payments
+    stripePaymentId: paymentData.stripePaymentId, // For card payments
+    timestamp: Date.now(),                   // When the order was completed
+
+    // Required by CompletedOrder; overwritten in POSGrid if needed
+    customerId: null,
+    customerName: null,
   };
 }

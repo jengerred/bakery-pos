@@ -35,6 +35,10 @@ export type CompletedOrder = {
 
   stripePaymentId?: string;       // For card payments
   timestamp: number;              // When the order was completed
+
+  customerId: string | null;
+customerName: string | null;
+
 };
 
 /* -------------------------------------------------------
