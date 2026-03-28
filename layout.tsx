@@ -36,35 +36,13 @@ export default function POSLayout({ children }: { children: React.ReactNode }) {
       <OrderHistoryProvider>
         <CustomerProvider>
            <CartProvider>
-          {/* 
-            POS Top Bar
-            -----------
-            This bar stays consistent across all POS pages.
-            It provides quick access to customer lookup.
-          */}
-          <div className="w-full bg-gray-100 p-3 flex justify-end border-b">
-            <button
-              onClick={() => setShowCustomerModal(true)}
-              className="bg-purple-600 text-white px-4 py-2 rounded font-medium"
-            >
-              Customer
-            </button>
-          </div>
-
+          
           {/* Render the actual POS page */}
           {children}
 
           {/* Global toaster for notifications */}
           <Toaster position="top-right" />
 
-          {/* Customer Lookup Modal */}
-          {showCustomerModal && (
-            <CustomerLookupModal onClose={() => setShowCustomerModal(false)} onFound={function (user: User): void {
-              throw new Error("Function not implemented.");
-            } } onNotFound={function (value: string): void {
-              throw new Error("Function not implemented.");
-            } } />
-          )}
           </CartProvider>
         </CustomerProvider>
       </OrderHistoryProvider>

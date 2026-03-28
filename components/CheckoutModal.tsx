@@ -70,6 +70,13 @@ export default function CheckoutModal({
   const [loading, setLoading] = useState(false);
 
   /* ------------------------------
+  ⭐ NEW — Reader Status for Cashier UI
+  ------------------------------ */
+  const [readerStatus, setReaderStatus] = useState<
+    "connected" | "waiting" | "collecting" | "processing" | "approved" | null
+  >(null);
+
+  /* ------------------------------
   🧮 Totals
   ------------------------------ */
   const subtotal = order.reduce(
@@ -92,30 +99,47 @@ export default function CheckoutModal({
   }, []);
 
   /* -------------------------------------------------------
-  ⭐ LISTEN FOR READER PAYMENT COMPLETION
+  ⭐ LISTEN FOR READER STATUS + PAYMENT EVENTS
   ------------------------------------------------------- */
   useEffect(() => {
-   function handleReaderComplete(e: any) {
-      const { paymentType, cardEntryMethod } = e.detail;
-
-      onComplete({
-        paymentType,
-        cardEntryMethod,
-      });
+    function handleReaderStatus(e: any) {
+      setReaderStatus(e.detail.status);
     }
 
+    function handleReaderStarted() {
+      setReaderStatus("collecting");
+    }
 
+    function handleReaderComplete(e: any) {
+      const { paymentType, cardEntryMethod } = e.detail;
+
+      // Delay before showing "Approved"
+      setTimeout(() => {
+        setReaderStatus("approved");
+
+        // Delay before completing checkout
+        setTimeout(() => {
+          onComplete({
+            paymentType,
+            cardEntryMethod,
+          });
+        }, 900);
+      }, 700);
+    }
+
+    window.addEventListener("reader-status-update", handleReaderStatus);
+    window.addEventListener("reader-payment-started", handleReaderStarted);
     window.addEventListener("reader-payment-complete", handleReaderComplete);
+
     return () => {
-      window.removeEventListener(
-        "reader-payment-complete",
-        handleReaderComplete
-      );
+      window.removeEventListener("reader-status-update", handleReaderStatus);
+      window.removeEventListener("reader-payment-started", handleReaderStarted);
+      window.removeEventListener("reader-payment-complete", handleReaderComplete);
     };
-  }, [paymentType]);
+  }, []);
 
   /* -------------------------------------------------------
-  ✅ HANDLE COMPLETE (cash or manual card)
+  ⭐ HANDLE COMPLETE (cash or manual card)
   ------------------------------------------------------- */
   async function handleComplete() {
     /* -------------------------
@@ -165,6 +189,10 @@ export default function CheckoutModal({
             cardEntryMethod: "manual",
             stripePaymentId: result.paymentIntent.id,
           });
+
+          // ⭐ Reset reader immediately for manual card
+          window.dispatchEvent(new CustomEvent("cashier-receipt-done"));
+
         }, 600);
       }
 
@@ -179,6 +207,10 @@ export default function CheckoutModal({
       cashTendered: Number(cashTendered),
       changeGiven: changeDue,
     });
+
+    // ⭐ Reset reader immediately for cash/manual card
+    window.dispatchEvent(new CustomEvent("cashier-receipt-done"));
+
   }
 
   /* -------------------------------------------------------
@@ -186,8 +218,34 @@ export default function CheckoutModal({
   ------------------------------------------------------- */
   return (
     <div className="fixed top-0 left-0 h-full w-[420px] bg-white shadow-2xl z-50 p-6 overflow-y-auto">
-
       <h2 className="text-xl font-semibold mb-4">Checkout</h2>
+
+      {/* ⭐ READER STATUS DISPLAY */}
+      {readerStatus && (
+        <div className="mb-4 p-3 border rounded bg-gray-50">
+          <p className="font-medium text-gray-700">Card Reader Status</p>
+
+          {readerStatus === "connected" && (
+            <p className="text-sm text-green-600">Reader Connected</p>
+          )}
+
+          {readerStatus === "waiting" && (
+            <p className="text-sm text-blue-600">Waiting for customer…</p>
+          )}
+
+          {readerStatus === "collecting" && (
+            <p className="text-sm text-blue-600">Collecting payment…</p>
+          )}
+
+          {readerStatus === "processing" && (
+            <p className="text-sm text-blue-600">Processing…</p>
+          )}
+
+          {readerStatus === "approved" && (
+            <p className="text-sm text-green-600">Payment Approved!</p>
+          )}
+        </div>
+      )}
 
       {/* -------------------------------------------------------
       💳 PAYMENT TYPE SELECTOR
@@ -221,9 +279,7 @@ export default function CheckoutModal({
           {cashTendered && (
             <p className="mt-2 text-sm">
               Change Due:{" "}
-              <span className="font-semibold">
-                ${changeDue.toFixed(2)}
-              </span>
+              <span className="font-semibold">${changeDue.toFixed(2)}</span>
             </p>
           )}
         </div>
@@ -234,7 +290,6 @@ export default function CheckoutModal({
       ------------------------------------------------------- */}
       {(paymentType === "credit" || paymentType === "debit") && (
         <div className="mb-4 space-y-3">
-
           {/* Manual vs Terminal */}
           <div className="flex gap-2 text-sm">
             <button
@@ -253,6 +308,7 @@ export default function CheckoutModal({
               type="button"
               onClick={() => {
                 setCardEntryMethod("terminal");
+                setReaderStatus("waiting");
                 if (terminal.status === "disconnected") terminal.connect();
               }}
               className={`px-3 py-1 rounded border ${
