@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 /* -------------------------------------------------------
 🧱 UI Components
@@ -43,7 +43,6 @@ type Props = {
   setLastOrder: (o: CompletedOrder | null) => void;
   terminal: any;
   addOrder: (o: CompletedOrder) => void;
-
 };
 
 /* -------------------------------------------------------
@@ -67,16 +66,60 @@ export default function POSGrid({
   terminal,
   addOrder,
 }: Props) {
-  const { customer } = useCustomer();
+ const { customer, setCustomer } = useCustomer();
+
+
+  /* ⭐ NEW: show receipt modal only after customer chooses */
+  const [showReceipt, setShowReceipt] = useState(false);
+
+  /* ⭐ NEW: store the receipt method chosen by customer */
+  const [receiptMethod, setReceiptMethod] = useState<
+    "print" | "email" | "text" | "none" | null
+  >(null);
 
   /* -------------------------------------------------------
   ⭐ Begin Checkout Flow
   ------------------------------------------------------- */
   const handleBeginCheckout = () => {
     setShowCheckout(true);
-   window.dispatchEvent(new CustomEvent("cashier-checkout-ready"));
-
+    window.dispatchEvent(new CustomEvent("cashier-payment-enabled"));
   };
+
+  /* -------------------------------------------------------
+  ⭐ LISTEN FOR READER RECEIPT CHOICE
+  ------------------------------------------------------- */
+  useEffect(() => {
+    function handleReceiptChoice(e: any) {
+      if (!lastOrder) return;
+
+      const method = e.detail.method;
+      setReceiptMethod(method);
+
+      // Show receipt modal on left side
+      setShowReceipt(true);
+    }
+
+    window.addEventListener("reader-receipt-choice", handleReceiptChoice);
+    return () =>
+      window.removeEventListener("reader-receipt-choice", handleReceiptChoice);
+  }, [lastOrder]);
+
+  /* -------------------------------------------------------
+  ⭐ Cashier closes receipt modal → reader resets
+  ------------------------------------------------------- */
+  function handleCloseReceipt() {
+  setShowReceipt(false);
+
+  // ⭐ Reset customer so cashier Order Summary clears
+  setCustomer(null);
+
+  // Optional: clear last order from memory
+  // setLastOrder(null);
+
+  // Tell reader to reset (you already do this)
+  window.dispatchEvent(new CustomEvent("cashier-receipt-done"));
+}
+
 
   return (
     <>
@@ -110,18 +153,23 @@ export default function POSGrid({
 
             addOrder(completed);
             setLastOrder(completed);
+            setReceiptMethod(null);   // print-only mode
+            setShowReceipt(true);     // show receipt modal immediately
             setOrder([]);
             setShowCheckout(false);
           }}
         />
       )}
 
-      {/* ⭐ RECEIPT SIDE PANEL */}
-      {lastOrder && (
-        <ReceiptModal
-          order={lastOrder}
-          onClose={() => setLastOrder(null)}
-        />
+      {/* ⭐ RECEIPT SIDE PANEL — LEFT SIDE ONLY */}
+      {showReceipt && lastOrder && (
+        <div className="fixed top-0 left-0 h-full w-[420px] bg-white shadow-2xl z-50 p-6 overflow-y-auto">
+          <ReceiptModal
+            order={lastOrder}
+            receiptMethod={receiptMethod}
+            onClose={handleCloseReceipt}
+          />
+        </div>
       )}
 
       {/* ⭐ MAIN GRID */}

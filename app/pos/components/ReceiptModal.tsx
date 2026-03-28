@@ -1,31 +1,14 @@
 "use client";
 
-/* -------------------------------------------------------
-   📦 Types
-   CompletedOrder contains all order + payment details.
-------------------------------------------------------- */
 import { CompletedOrder } from "../context/OrderHistoryContext";
 
-/* -------------------------------------------------------
-   🧾 ReceiptModal
-   Displays a printable receipt for a completed order.
-   Includes:
-   - Order metadata
-   - Line items
-   - Totals
-   - Payment details (cash, credit, debit)
-   - Print + Close actions
-------------------------------------------------------- */
 type ReceiptModalProps = {
-  order: CompletedOrder; // The order being displayed
-  onClose: () => void;   // Close modal callback
+  order: CompletedOrder;
+  receiptMethod: "print" | "email" | "text" | "none" | null;
+  onClose: () => void;
 };
 
-export default function ReceiptModal({ order, onClose }: ReceiptModalProps) {
-  /* ------------------------------
-     🧮 Recalculate totals
-     (Stored totals exist, but recalculating ensures accuracy)
-  ------------------------------ */
+export default function ReceiptModal({ order, receiptMethod, onClose }: ReceiptModalProps) {
   const subtotal = order.items.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
     0
@@ -33,62 +16,50 @@ export default function ReceiptModal({ order, onClose }: ReceiptModalProps) {
   const tax = subtotal * 0.06;
   const total = subtotal + tax;
 
-  /* ------------------------------
-     🎨 Render Receipt UI
-  ------------------------------ */
+  // Print button enabled only if:
+  // - Customer chose print
+  // - OR no account / timeout (receiptMethod === null)
+  const printEnabled =
+    receiptMethod === "print" || receiptMethod === null;
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+    <div id="receipt-print-area" className="h-full w-full">
+      <div className="bg-white p-4">
 
-        {/* -------------------------------------------------------
-           🧾 HEADER
-        ------------------------------------------------------- */}
-        <h2 className="text-xl font-semibold mb-4">Receipt</h2>
-        
+        {/* CASHIER-ONLY BANNER */}
+        {receiptMethod && (
+          <div className="mb-4 p-2 bg-gray-100 border rounded text-sm text-gray-700 print:hidden">
+            {receiptMethod === "print" && "Customer chose: Print Receipt"}
+            {receiptMethod === "email" && "Customer chose: Email Receipt"}
+            {receiptMethod === "text" && "Customer chose: Text Receipt"}
+            {receiptMethod === "none" && "Customer declined a receipt"}
+          </div>
+        )}
 
-         {/* -------------------------------------------------------
-          🧍 CUSTOMER NAME (if available)
-        ------------------------------------------------------- */}
-       
+        <h2 className="text-xl font-semibold mb-2">Receipt</h2>
 
-          {order.customerName && (
-            <p className="text-sm text-gray-700 mb-4">
-              <strong>Customer:</strong> {order.customerName}
-            </p>
-          )}
+        {order.customerName && (
+          <p className="text-sm text-gray-700 mb-4">
+            <strong>Customer:</strong> {order.customerName}
+          </p>
+        )}
 
-
-
-        {/* -------------------------------------------------------
-           📅 ORDER INFO
-        ------------------------------------------------------- */}
-        <p className="text-sm text-gray-500 mb-2">
+        <p className="text-sm text-gray-500">
           Order ID: {order.id.slice(0, 8)}
         </p>
         <p className="text-sm text-gray-500 mb-4">
           {new Date(order.timestamp).toLocaleString()}
         </p>
 
-       
-        {/* -------------------------------------------------------
-           🛒 LINE ITEMS
-        ------------------------------------------------------- */}
         <ul className="space-y-2 mb-4">
           {order.items.map((item) => (
             <li key={item.product.id} className="flex justify-between">
-              <span>
-                {item.quantity}× {item.product.name}
-              </span>
-              <span>
-                ${(item.product.price * item.quantity).toFixed(2)}
-              </span>
+              <span>{item.quantity}× {item.product.name}</span>
+              <span>${(item.product.price * item.quantity).toFixed(2)}</span>
             </li>
           ))}
         </ul>
 
-        {/* -------------------------------------------------------
-           💵 TOTALS
-        ------------------------------------------------------- */}
         <div className="space-y-1 mb-4">
           <div className="flex justify-between">
             <span>Subtotal</span>
@@ -106,13 +77,9 @@ export default function ReceiptModal({ order, onClose }: ReceiptModalProps) {
           </div>
         </div>
 
-        {/* -------------------------------------------------------
-           💳 PAYMENT DETAILS
-        ------------------------------------------------------- */}
         <div className="border-t pt-3 mt-4 text-sm space-y-1">
           <p className="font-semibold mb-1">Payment Details</p>
 
-          {/* ---------------- CASH ---------------- */}
           {order.paymentType === "cash" && (
             <>
               <p>Payment Method: Cash</p>
@@ -121,58 +88,42 @@ export default function ReceiptModal({ order, onClose }: ReceiptModalProps) {
             </>
           )}
 
-          {/* ---------------- CREDIT ---------------- */}
           {order.paymentType === "credit" && (
             <>
               <p>Payment Method: Credit Card</p>
               {order.cardEntryMethod === "manual" && <p>Entry: Manual</p>}
-              {order.cardEntryMethod === "terminal" && (
-                <p>Entry: Chip/Tap/Swipe</p>
-              )}
-              {order.stripePaymentId && (
-                <p className="text-xs text-gray-500">
-                  Payment ID: {order.stripePaymentId}
-                </p>
-              )}
+              {order.cardEntryMethod === "terminal" && <p>Entry: Chip/Tap/Swipe</p>}
             </>
           )}
 
-          {/* ---------------- DEBIT ---------------- */}
           {order.paymentType === "debit" && (
             <>
               <p>Payment Method: Debit Card</p>
               {order.cardEntryMethod === "manual" && <p>Entry: Manual</p>}
-              {order.cardEntryMethod === "terminal" && (
-                <p>Entry: Chip/Tap/Swipe</p>
-              )}
-              {order.stripePaymentId && (
-                <p className="text-xs text-gray-500">
-                  Payment ID: {order.stripePaymentId}
-                </p>
-              )}
+              {order.cardEntryMethod === "terminal" && <p>Entry: Chip/Tap/Swipe</p>}
             </>
           )}
         </div>
 
-        {/* -------------------------------------------------------
-           🖨️ ACTION BUTTONS
-        ------------------------------------------------------- */}
-        <div className="receipt-actions">
-          <div className="flex justify-end mt-6">
-            <button
-              onClick={() => window.print()}
-              className="px-4 py-2 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800"
-            >
-              Print Receipt
-            </button>
+        <div className="flex justify-end mt-6 print:hidden">
+          <button
+            onClick={() => window.print()}
+            disabled={!printEnabled}
+            className={`px-4 py-2 mr-2 rounded text-white ${
+              printEnabled
+                ? "bg-gray-700 hover:bg-gray-800"
+                : "bg-gray-400 cursor-not-allowed"
+            }`}
+          >
+            Print Receipt
+          </button>
 
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Close
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Close
+          </button>
         </div>
 
       </div>
