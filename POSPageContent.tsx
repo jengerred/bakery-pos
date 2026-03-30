@@ -21,7 +21,7 @@ import { useStripeRedirectToast } from "./hooks/useStripeRedirectToast";
 /* -------------------------------------------------------
    🧱 Components (UI Building Blocks)
 ------------------------------------------------------- */
-import ReaderStatusBadge from "./components/ReaderStatusBadge";
+
 import ProductOptionsModal from "./components/ProductOptionsModal";
 import POSGrid from "./components/POSGrid";
 
