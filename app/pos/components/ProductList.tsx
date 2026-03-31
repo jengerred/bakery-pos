@@ -1,62 +1,48 @@
 "use client";
 
-/* -------------------------------------------------------
-   🧺 Product Data
-   Static product list + Product type.
-   Used to render the available items in the POS.
-------------------------------------------------------- */
-import { products } from "@/app/pos/lib/products";
-import { Product } from "@/app/pos/lib/products";
+import { products, Product } from "../lib/products";
 
-/* -------------------------------------------------------
-   🧱 ProductList
-   Displays all available products with an "Add" button.
-
-   Responsibilities:
-   - Show product name + price
-   - Allow cashier to add a product to the order
-   - Pure UI component (no state, no effects)
-
-   NOTE:
-   - This is the cashier-facing product list.
-   - The reader has no equivalent component.
-------------------------------------------------------- */
 type ProductListProps = {
-  onAdd: (product: Product) => void; // Add product to cart
+  onAdd: (product: Product) => void;
 };
 
 export default function ProductList({ onAdd }: ProductListProps) {
   return (
-    <div className="space-y-4">
-
-      {/* -------------------------------------------------------
-         🛒 PRODUCT CARDS
-         Each product shows:
-         - Name
-         - Price
-         - Add button
-      ------------------------------------------------------- */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {products.map((product) => (
-        <div
+        <button
           key={product.id}
-          className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
-        >
-          {/* Product name + price */}
-          <div>
-            <p className="font-medium">{product.name}</p>
-            <p className="text-sm text-gray-500">
+          onClick={() => onAdd(product)}
+        className="group relative flex flex-col items-center justify-center aspect-square p-6 
+           border-2 border-violet-300 bg-violet-50 
+           transition-all duration-300 active:scale-95 rounded-3xl
+           /* ✨ The Glow Effect */
+           hover:border-brand hover:shadow-[0_0_40px_8px_rgba(167,139,250,0.6)]">
+          <div className="w-20 h-20 mb-4 rounded-full bg-violet-200 flex items-center justify-center 
+                          group-hover:bg-violet-300 transition-colors duration-300 
+                          ">
+            <span className="text-4xl filter drop-shadow-sm">
+              {product.name.toLowerCase().includes("cookie") ? "🍪" : "🍫"}
+            </span>
+          </div>
+
+          <div className="text-center space-y-1">
+            <h3 className="font-extrabold text-slate-800 dark:text-slate-200 text-base leading-tight">
+              {product.name}
+            </h3>
+            <p className="text-brand-hover dark:text-brand font-black text-lg">
               ${product.price.toFixed(2)}
             </p>
           </div>
 
-          {/* Add to cart */}
-          <button
-            onClick={() => onAdd(product)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Add
-          </button>
-        </div>
+          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="bg-brand text-white rounded-full p-1.5 shadow-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </div>
+        </button>
       ))}
     </div>
   );
