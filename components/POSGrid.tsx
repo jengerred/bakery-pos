@@ -2,7 +2,6 @@
 
 /* -------------------------------------------------------
    📦 UI Components (Cashier-Side)
-   These make up the core of the Register interface.
 ------------------------------------------------------- */
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -40,16 +39,6 @@ type Props = {
   addOrder: (o: CompletedOrder) => void;
 };
 
-/* -------------------------------------------------------
-   🧱 POSGrid
-   The central orchestrator for the Point of Sale interface.
-   
-   Responsibilities:
-   - Coordinate between the Product Catalog and Order Summary.
-   - Manage the visibility of Checkout and Receipt modals.
-   - Sync Reader hardware states with the Cashier UI.
-   - Process finalized orders and reset state for new transactions.
-------------------------------------------------------- */
 export default function POSGrid({
   order,
   setOrder,
@@ -75,14 +64,10 @@ export default function POSGrid({
      🧾 Receipt & UI State
   ------------------------------------------------------- */
   const [showReceipt, setShowReceipt] = useState(false);
-  
-  // undefined = locked (waiting for choice) | null = immediate (cash or no choice needed)
   const [receiptMethod, setReceiptMethod] = useState<"print" | "email" | "text" | "none" | null | undefined>(undefined);
 
   /* -------------------------------------------------------
      🎯 Auto-Sync State
-     Tracks if the reader hardware is currently active to 
-     automatically flip the Cashier UI to Card mode.
   ------------------------------------------------------- */
   const [isReaderActive, setIsReaderActive] = useState(false);
 
@@ -93,7 +78,6 @@ export default function POSGrid({
   ------------------------------------------------------- */
   const handleBeginCheckout = () => {
     setShowCheckout(true);
-    // Notify hardware simulation that payment flow has begun
     window.dispatchEvent(new CustomEvent("cashier-payment-enabled"));
   };
 
@@ -103,7 +87,6 @@ export default function POSGrid({
   useEffect(() => {
     function handleReaderStatus(e: any) {
       const status = e.detail.status;
-      // Automatically switch Cashier view to 'Card' if customer interacts with reader
       if (status === "waiting" || status === "collecting" || status === "processing") {
         setIsReaderActive(true);
       } else if (status === "idle") {
@@ -127,7 +110,6 @@ export default function POSGrid({
     return () => window.removeEventListener("reader-receipt-choice", handleReceiptChoice);
   }, [lastOrder]);
 
-  // Fallback for customers who walk away without picking a receipt method
   useEffect(() => {
     if (showReceipt && receiptMethod === undefined) {
       const timer = setTimeout(() => {
@@ -145,35 +127,48 @@ export default function POSGrid({
     setCustomer(null);
     setReceiptMethod(undefined); 
     setIsReaderActive(false); 
-    // Reset hardware simulation to idle state
     window.dispatchEvent(new CustomEvent("cashier-receipt-done"));
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6 px-8 py-2" 
+    style={{
+        backgroundImage: "url('/bakery2-bg.png')", // Matches the file name in your public folder
+        backgroundSize: "400px", // Adjust this number to make the bakery items bigger or smaller
+        backgroundRepeat: "repeat", // Tiles the pattern seamlessly
+        backgroundAttachment: "fixed" // Optional: keeps the background still if you scroll
+      }}>
       {/* 📑 NAVIGATION TABS */}
-      <div className="flex border-b border-gray-200">
-        <button className="px-6 py-2 border-b-2 border-blue-600 text-blue-600 font-bold">
-          Register
-        </button>
-        <Link href="/pos/transactions" className="px-6 py-2 text-gray-500 hover:text-blue-600 transition-colors">
-          Transactions
-        </Link>
+      <div className="flex items-center justify-between border-b border-violet-200 bg-violet-100/80 backdrop-blur-md px-6 transition-colors rounded-t-3xl shadow-sm">
+        <div className="flex gap-2">
+          <button className="px-6 py-5 border-b-4 border-violet-600 text-violet-700 font-black uppercase tracking-widest text-sm">
+            Register
+          </button>
+          <Link href="/pos/transactions" className="px-6 py-5 text-violet-400 hover:text-violet-600 transition-colors uppercase tracking-widest text-sm font-bold">
+            Transactions
+          </Link>
+        </div>
+        <div className="mr-4 px-4 py-1.5 bg-violet-600/10 border border-violet-600/20 rounded-full">
+           <span className="text-xs font-black uppercase text-violet-700 tracking-widest">Terminal Live</span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-12 gap-8">
         {/* LEFT COLUMN: Product Catalog */}
         <div className="col-span-8">
-          <section className="p-4 border rounded-lg bg-white shadow min-h-[600px]">
-            <h2 className="text-xl font-semibold mb-4">Products</h2>
+          <section className="p-8 border rounded-[2.5rem] bg-violet-200 backdrop-blur-xl border-violet-500 shadow-xl shadow-violet-300 min-h-[650px]">
+            <h2 className="text-2xl font-black mb-8 text-violet-600 uppercase tracking-[0.2em]">
+              Our Menu
+            </h2>
             <ProductList onAdd={openProductModal} />
           </section>
         </div>
 
         {/* RIGHT COLUMN: Order Details & Hardware Status */}
         <div className="col-span-4 space-y-6">
-          <section className="p-4 border rounded-lg bg-white shadow">
-            <div className="mb-4">
+          <section className="p-8 border rounded-[2.5rem] bg-violet-100/80 backdrop-blur-md px-6 transition-colors border-violet-400 shadow-xl shadow-violet-900/5">
+            <div className="mb-6">
+              <h2 className="text-xl font-black mb-4 text-violet-600 uppercase tracking-wider">Current Order</h2>
               <OrderSummary
                 order={order}
                 onIncrease={handleIncrease}
@@ -182,21 +177,21 @@ export default function POSGrid({
               />
             </div>
             
-            <div className="pt-4 border-t border-gray-100">
+            <div className="pt-6 border-t border-violet-100">
               <OrderTotals order={order} />
-              <button
+             <button
                 onClick={handleBeginCheckout}
                 disabled={order.length === 0}
-                className="w-full mt-6 py-6 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold flex flex-col items-center justify-center gap-1 shadow-md transition-all active:scale-[0.98]"
+                className="w-full mt-8 py-7 bg-violet-600 text-white rounded-[1.5rem] hover:bg-violet-700 font-black uppercase tracking-tighter shadow-lg shadow-violet-600/30 active:scale-[0.98] disabled:opacity-50 transition-all flex flex-col items-center justify-center gap-1"
               >
-                <span className="text-2xl uppercase tracking-wide">Checkout</span>
-                <span className="text-xl font-medium opacity-90">Pay: ${total.toFixed(2)}</span>
+                <span className="text-2xl">Checkout</span>
+                <span className="text-lg opacity-90 font-medium">Total: ${total.toFixed(2)}</span>
               </button>
             </div>
           </section>
 
           {/* Reader UI Container */}
-          <section className="p-4 border rounded-lg bg-white shadow">
+          <section className="p-6 border rounded-[2rem] bg-white/60 backdrop-blur-xl border-violet-100 shadow-lg shadow-violet-900/5">
             <CardReaderContainer terminal={terminal} />
           </section>
         </div>
@@ -233,7 +228,6 @@ export default function POSGrid({
             addOrder(completed);
             setLastOrder(completed);
             
-            // Handle post-payment reader behavior
             if (paymentData.paymentType === "cash" || !customer) {
                window.dispatchEvent(new CustomEvent("reader-force-thank-you"));
                setReceiptMethod(null);
@@ -250,7 +244,7 @@ export default function POSGrid({
 
       {/* 🧾 RECEIPT MODAL OVERLAY */}
       {showReceipt && lastOrder && (
-        <div className="fixed top-0 left-0 h-full w-[420px] bg-white shadow-2xl z-50 p-6 overflow-y-auto">
+        <div className="fixed top-0 left-0 h-full w-[420px] bg-white dark:bg-slate-900 shadow-2xl z-50 p-6 overflow-y-auto transition-colors">
           <ReceiptModal
             order={lastOrder}
             receiptMethod={receiptMethod as any}

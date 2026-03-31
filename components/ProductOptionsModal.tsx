@@ -2,32 +2,20 @@
 
 /* -------------------------------------------------------
    🧺 Product Type
-   Used to type the selected product.
 ------------------------------------------------------- */
 import { Product } from "../lib/products";
 
 /* -------------------------------------------------------
    🪟 ProductOptionsModal (Cashier-Side)
-   Modal for adjusting quantity or deleting a product
-   before adding/updating it in the cart.
-
-   Responsibilities:
-   - Show product name + price
-   - Allow quantity adjustments
-   - Allow deletion (only if product already in cart)
-   - Save changes and close modal
-
-   NOTE:
-   - This is the cashier-facing modal.
-   - The reader has no equivalent modal.
+   🎨 UPDATED: Support for Lilac Brand theme and Dark Mode.
 ------------------------------------------------------- */
 type ProductOptionsModalProps = {
-  product: Product;                                // Product being edited
-  quantity: number;                                // Current quantity (from cart or default 1)
-  existsInCart: boolean;                           // Whether this product is already in the cart
-  onClose: () => void;                             // Close modal
-  onSave: (product: Product, newQty: number) => void; // Save quantity changes
-  onDelete: (product: Product) => void;            // Remove product from cart
+  product: Product;
+  quantity: number;
+  existsInCart: boolean;
+  onClose: () => void;
+  onSave: (product: Product, newQty: number) => void;
+  onDelete: (product: Product) => void;
 };
 
 export default function ProductOptionsModal({
@@ -39,71 +27,86 @@ export default function ProductOptionsModal({
   onDelete,
 }: ProductOptionsModalProps) {
 
-  // Safety check — shouldn't happen, but prevents rendering errors
   if (!product) return null;
 
-  /* -------------------------------------------------------
-     🎨 Render Modal UI
-  ------------------------------------------------------- */
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg w-80 shadow">
+    /* Overlay uses a darker backdrop for better focus */
+    <div className="fixed inset-0 bg-violet-900/60 backdrop-blur-sm flex items-center justify-center z-50 transition-all">
+      
+      {/* 🎯 MAIN MODAL CONTAINER
+          Added dark:bg-slate-900 and dark:border-slate-800 
+      */}
+      <div className="bg-white dark:bg-violet-100 p-8 rounded-3xl w-96 shadow-2xl border border-slate-100 dark:border-slate-800 transition-colors duration-500">
 
-        {/* -------------------------------------------------------
-           🏷️ PRODUCT HEADER
-        ------------------------------------------------------- */}
-        <h2 className="text-lg font-semibold mb-3">{product.name}</h2>
-        <p className="text-gray-600 mb-4">${product.price.toFixed(2)}</p>
+        {/* 🏷️ PRODUCT HEADER */}
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
+            {product.name}
+          </h2>
+          <p className="text-brand dark:text-brand-light font-bold text-lg">
+            ${product.price.toFixed(2)}
+          </p>
+        </div>
 
-        {/* -------------------------------------------------------
-           🔢 QUANTITY SELECTOR
-        ------------------------------------------------------- */}
-        <div className="flex items-center justify-between mb-6">
-          <span className="text-sm text-gray-600">Quantity</span>
+        {/* 🔢 QUANTITY SELECTOR 
+            Updated with larger touch targets for the cashier
+        */}
+        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl mb-8">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-slate-500 dark:text-slate-400 uppercase text-xs tracking-widest">
+              Quantity
+            </span>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => onSave(product, quantity - 1)}
-              className="px-2 py-1 bg-gray-200 rounded"
-            >
-              –
-            </button>
+            <div className="flex items-center gap-6">
+              <button
+                onClick={() => onSave(product, Math.max(1, quantity - 1))}
+                className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl font-bold text-xl hover:border-brand transition-colors dark:text-white"
+              >
+                –
+              </button>
 
-            <span className="w-8 text-center">{quantity}</span>
+              <span className="text-2xl font-black w-8 text-center dark:text-white">
+                {quantity}
+              </span>
 
-            <button
-              onClick={() => onSave(product, quantity + 1)}
-              className="px-2 py-1 bg-gray-200 rounded"
-            >
-              +
-            </button>
+              <button
+                onClick={() => onSave(product, quantity + 1)}
+                className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl font-bold text-xl hover:border-brand transition-colors dark:text-white"
+              >
+                +
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* -------------------------------------------------------
-           🗑️ DELETE + SAVE BUTTONS
-        ------------------------------------------------------- */}
-        <div className="flex justify-between items-center">
+        {/* 🗑️ ACTION BUTTONS */}
+        <div className="flex gap-4 items-center">
+          
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold transition-colors"
+          >
+            Cancel
+          </button>
 
-          {/* Only show delete if item is already in cart */}
           {existsInCart && (
             <button
               onClick={() => onDelete(product)}
-              className="text-red-600 hover:text-red-800"
+              className="px-4 py-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all"
             >
-              Delete
+              Remove
             </button>
           )}
 
-          {/* Add or Update button */}
+          {/* 🟣 THE LILAC BRAND BUTTON */}
           <button
             onClick={() => {
               onSave(product, quantity);
               onClose();
             }}
-            className="px-3 py-1 bg-blue-600 text-white rounded ml-auto"
+            className="flex-1 py-4 bg-brand hover:bg-brand-hover text-white rounded-2xl font-black text-lg shadow-lg shadow-brand/20 active:scale-95 transition-all"
           >
-            {existsInCart ? "Update" : "Add"}
+            {existsInCart ? "Update" : "Add to Order"}
           </button>
         </div>
       </div>

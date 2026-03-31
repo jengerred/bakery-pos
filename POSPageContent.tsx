@@ -21,7 +21,6 @@ import { useStripeRedirectToast } from "./hooks/useStripeRedirectToast";
 /* -------------------------------------------------------
    🧱 Components (UI Building Blocks)
 ------------------------------------------------------- */
-
 import ProductOptionsModal from "./components/ProductOptionsModal";
 import POSGrid from "./components/POSGrid";
 
@@ -32,12 +31,9 @@ import { createCompletedOrder } from "./lib/handleCheckout";
 
 /* -------------------------------------------------------
    🖥️ POS Page Content
-   This component orchestrates:
-   - Cart state
-   - Terminal simulation
-   - Order creation
-   - Checkout flow
-   - Product options modal
+   🎨 UPDATED: 
+   - Fixed background to support Glassmorphism.
+   - Removed unused/broken context imports causing build errors.
 ------------------------------------------------------- */
 export default function POSPageContent() {
   /* ------------------------------
@@ -74,18 +70,21 @@ export default function POSPageContent() {
 
   /* ------------------------------
      🔔 Stripe Redirect Toasts
-     (Only used if redirect flow occurs)
   ------------------------------ */
   useStripeRedirectToast();
 
-  /* ------------------------------
-     🎨 Render UI
-  ------------------------------ */
   return (
-    <div className="p-4">
-         {/* -------------------------------------------------------       
-
-      {/* 🧱 Main POS Grid Layout */}
+    /* 🎯 THEME ANCHOR: 
+       - min-h-screen: Ensures the background covers the whole browser.
+       - bg-slate-50: The clean "daytime" bakery look.
+       - dark:bg-slate-950: The deep "closing shift" navy.
+       - transition-colors: Makes the toggle feel expensive/smooth.
+    */
+    <div className="min-h-screen bg-violet-50 dark:bg-slate-950 transition-colors duration-500">  
+      
+      {/* 🧱 Main POS Grid Layout 
+          We removed p-4 here so the Navbar in POSGrid can sit flush at the top.
+      */}
       <POSGrid
         order={order}
         setOrder={setOrder}
@@ -103,13 +102,9 @@ export default function POSPageContent() {
         setLastOrder={setLastOrder}
         terminal={terminal}
         addOrder={(paymentData) => {
-          // 🧮 Create completed order using helper
           const completed = createCompletedOrder(order, paymentData);
-
           addOrder(completed);
           setLastOrder(completed);
-
-          // 🧹 Reset cart + close modal
           setOrder([]);
           setShowCheckout(false);
         }}
