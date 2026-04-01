@@ -131,15 +131,17 @@ export default function POSGrid({
   }
 
   return (
-    <div className="flex flex-col gap-6 px-8 py-2" 
-    style={{
-        backgroundImage: "url('/bakery2-bg.png')", // Matches the file name in your public folder
-        backgroundSize: "400px", // Adjust this number to make the bakery items bigger or smaller
-        backgroundRepeat: "repeat", // Tiles the pattern seamlessly
-        backgroundAttachment: "fixed" // Optional: keeps the background still if you scroll
+    <div className="flex flex-col gap-6 px-8 py-2 bg-violet-100" 
+   style={{
+        backgroundImage: "url('/background3.png')", // Matches the file name in your public folder
+       backgroundSize: "cover",      // This stretches the image to fill the container
+      backgroundPosition: "center", // This keeps the image centered
+      backgroundRepeat: "no-repeat", // This stops the tiling
+      backgroundAttachment: "fixed"
       }}>
+        
       {/* 📑 NAVIGATION TABS */}
-      <div className="flex items-center justify-between border-b border-violet-200 bg-violet-100/80 backdrop-blur-md px-6 transition-colors rounded-t-3xl shadow-sm">
+      <div className="flex items-center justify-between border-b border-violet-200  backdrop-blur-md px-6 transition-colors rounded-t-3xl shadow-sm">
         <div className="flex gap-2">
           <button className="px-6 py-5 border-b-4 border-violet-600 text-violet-700 font-black uppercase tracking-widest text-sm">
             Register
@@ -166,7 +168,7 @@ export default function POSGrid({
 
         {/* RIGHT COLUMN: Order Details & Hardware Status */}
         <div className="col-span-4 space-y-6">
-          <section className="p-8 border rounded-[2.5rem] bg-violet-100/80 backdrop-blur-md px-6 transition-colors border-violet-400 shadow-xl shadow-violet-900/5">
+          <section className="p-8 border rounded-[2.5rem] backdrop-blur-md px-6 transition-colorspx-6 transition-colors border-violet-400 shadow-xl shadow-violet-900/5">
             <div className="mb-6">
               <h2 className="text-xl font-black mb-4 text-violet-600 uppercase tracking-wider">Current Order</h2>
               <OrderSummary
