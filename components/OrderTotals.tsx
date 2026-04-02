@@ -2,77 +2,81 @@
 
 /* -------------------------------------------------------
    🧺 Product Type
-   Used to type each item in the order.
 ------------------------------------------------------- */
 import { Product } from "@/app/pos/lib/products";
 
 /* -------------------------------------------------------
    🧾 OrderItem Type
-   Local type for clarity inside this component.
+   Updated to include overridePrice for bulk/dozen deals.
 ------------------------------------------------------- */
 type OrderItem = {
   product: Product;
   quantity: number;
+  overridePrice?: number; // The flat rate for a bundle (e.g., $20.00 for 12)
 };
 
 /* -------------------------------------------------------
    💵 OrderTotals (Cashier-Side)
-   Displays subtotal, tax, and total for the current order.
-
-   Responsibilities:
-   - Compute totals from the order array
-   - Apply Michigan's 6% sales tax
-   - Render a clean, compact totals block
-
-   NOTE:
-   - This is a pure UI component.
-   - No state, no effects, no context.
-   - The reader has its own totals display.
+   Calculates and renders the financial breakdown of the order.
 ------------------------------------------------------- */
 type OrderTotalsProps = {
-  order: OrderItem[]; // Cart items with quantities
+  order: OrderItem[]; 
 };
 
 export default function OrderTotals({ order }: OrderTotalsProps) {
 
   /* -------------------------------------------------------
      🧮 Calculate Totals
-     subtotal = sum(price × qty)
-     tax = 6% Michigan sales tax
-     total = subtotal + tax
+     Logic: Checks the 'taxable' status of each product to 
+     ensure we only apply the 6% Michigan sales tax to 
+     eligible items (like drinks or prepared foods).
   ------------------------------------------------------- */
-  const subtotal = order.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  );
+  
+  // 1. Calculate the overall Subtotal (Total of all items)
+  const subtotal = order.reduce((sum, item) => {
+    const activePrice = item.overridePrice !== undefined ? item.overridePrice : item.product.price;
+    return sum + (activePrice * item.quantity);
+  }, 0);
+
+  // 2. Calculate the Taxable Portion (Only items where taxable is true)
+  const taxableSubtotal = order.reduce((sum, item) => {
+    if (item.product.taxable) {
+      const activePrice = item.overridePrice !== undefined ? item.overridePrice : item.product.price;
+      return sum + (activePrice * item.quantity);
+    }
+    return sum;
+  }, 0);
 
   const taxRate = 0.06; // Michigan sales tax
-  const tax = subtotal * taxRate;
+  const tax = taxableSubtotal * taxRate;
   const total = subtotal + tax;
 
   /* -------------------------------------------------------
      🎨 Render Totals UI
   ------------------------------------------------------- */
   return (
-    <section className="p-4 border rounded-lg bg-white shadow mt-4">
-      <h2 className="text-lg font-semibold mb-3">Totals</h2>
+    <section className="p-6 border-2 border-violet-100 rounded-[2rem] bg-white/80 backdrop-blur-md shadow-sm mt-4">
+      <h2 className="text-md font-black text-violet-700 uppercase tracking-[0.2em] mb-4">Totals</h2>
 
-      {/* Subtotal */}
-      <div className="flex justify-between text-sm mb-1">
-        <span>Subtotal</span>
-        <span>${subtotal.toFixed(2)}</span>
+      {/* Subtotal - The raw cost of all items */}
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-sm font-bold text-slate-500 uppercase tracking-tight">Subtotal</span>
+        <span className="text-lg font-black text-slate-800">${subtotal.toFixed(2)}</span>
       </div>
 
-      {/* Tax */}
-      <div className="flex justify-between text-sm mb-1">
-        <span>Tax (6%)</span>
-        <span>${tax.toFixed(2)}</span>
+      {/* Tax (6%) - Calculated only on taxable items */}
+      <div className="flex justify-between items-center mb-4">
+        <span className="text-sm font-bold text-slate-500 uppercase tracking-tight">Tax (6%)</span>
+        <span className="text-lg font-black text-slate-800">${tax.toFixed(2)}</span>
       </div>
 
-      {/* Total */}
-      <div className="flex justify-between font-semibold text-base mt-2">
-        <span>Total</span>
-        <span>${total.toFixed(2)}</span>
+      {/* Visual Divider */}
+      <div className="h-px bg-violet-100 w-full mb-4" />
+
+      {/* Final Total - Subtotal + Calculated Tax */}
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-black text-violet-900 uppercase tracking-widest">Total Due</span>
+        <span className="text-3xl font-black text-violet-600">${total.toFixed(2)}</span>
       </div>
     </section>
   );

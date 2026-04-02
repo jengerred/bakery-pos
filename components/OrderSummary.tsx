@@ -2,34 +2,24 @@
 
 /* -------------------------------------------------------
    🧺 Product Type
-   Used to type each item in the order.
 ------------------------------------------------------- */
 import { Product } from "@/app/pos/lib/products";
 
 /* -------------------------------------------------------
    👤 Customer Context
-   Used to display the active customer (if any).
 ------------------------------------------------------- */
 import { useCustomer } from "@/app/pos/context/CustomerContext";
 
 /* -------------------------------------------------------
    🧾 OrderSummary (Cashier-Side)
-   Displays the current cart with:
-   - Customer name (if selected)
-   - Product name
-   - Line total
-   - Quantity controls (+ / –)
-   - Remove button
-
-   NOTE:
-   - This is the cashier-facing version.
-   - The reader has its own read-only summary screen.
+   Renders the list of items. Scrolling is handled by the 
+   parent container in POSGrid.tsx to prevent double bars.
 ------------------------------------------------------- */
 type OrderSummaryProps = {
-  order: { product: Product; quantity: number }[];
-  onIncrease: (productId: number) => void; // Increase quantity
-  onDecrease: (productId: number) => void; // Decrease quantity
-  onRemove: (productId: number) => void;   // Remove item entirely
+  order: { product: Product; quantity: number; overridePrice?: number }[];
+  onIncrease: (productId: number) => void;
+  onDecrease: (productId: number) => void;
+  onRemove: (productId: number) => void;
 };
 
 export default function OrderSummary({
@@ -38,80 +28,80 @@ export default function OrderSummary({
   onDecrease,
   onRemove,
 }: OrderSummaryProps) {
-
-  /* -------------------------------------------------------
-     👤 Active Customer (optional)
-     Displayed above the order list.
-  ------------------------------------------------------- */
   const { customer } = useCustomer();
 
   return (
-    <div className="p-4 border rounded-lg bg-white shadow">
-      <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
-
-      {/* Customer name */}
+    <div className="flex flex-col">
+      {/* 👤 ACTIVE CUSTOMER BADGE */}
       {customer?.name && (
-        <p className="text-sm text-gray-700 mb-4">
-          <strong>Customer:</strong> {customer.name}
-        </p>
+        <div className="mb-4 p-3 bg-violet-600 rounded-2xl shadow-sm border border-violet-400">
+          <p className="text-[10px] font-black text-violet-200 uppercase tracking-widest mb-1">Active Customer</p>
+          <p className="text-white font-black text-lg uppercase tracking-tight">{customer.name}</p>
+        </div>
       )}
 
-      {/* -------------------------------------------------------
-         🪹 EMPTY STATE
-      ------------------------------------------------------- */}
+      {/* 🪹 EMPTY STATE */}
       {order.length === 0 && (
-        <p className="text-gray-500">No items added yet.</p>
+        <div className="flex flex-col items-center justify-center py-6 bg-white/20 border-2 border-dashed border-violet-300 rounded-[2.5rem] opacity-60">
+          <span className="text-3xl mb-2">🛒</span>
+          <p className="text-violet-900 font-black uppercase tracking-widest text-[9px]">No items added yet.</p>
+        </div>
       )}
 
-      {/* -------------------------------------------------------
-         🛒 ORDER ITEMS
-      ------------------------------------------------------- */}
-      <ul className="space-y-4">
-        {order.map((item) => (
-          <li
-            key={item.product.id}
-            className="flex justify-between items-center"
-          >
-            {/* Product name + line total */}
-            <div>
-              <p className="font-medium">{item.product.name}</p>
-              <p className="text-sm text-gray-500">
-                ${(item.product.price * item.quantity).toFixed(2)}
-              </p>
-            </div>
+      {/* 🛒 ORDER ITEMS LIST 
+          Removed fixed heights and scrollbars from here. 
+          The parent section in POSGrid now dictates the height.
+      */}
+      <ul className="space-y-3">
+        {order.map((item) => {
+          const unitPrice = item.overridePrice ?? item.product.price;
+          const lineTotal = unitPrice * item.quantity;
 
-            {/* Quantity controls */}
-            <div className="flex items-center space-x-2">
+          return (
+            <li
+              key={item.product.id}
+              className="flex justify-between items-center p-4 bg-white/60 backdrop-blur-sm rounded-[1.5rem] border-2 border-transparent hover:border-violet-300 transition-all shadow-sm"
+            >
+              <div className="flex-1">
+                <p className="font-black text-slate-900 uppercase tracking-tighter text-sm leading-tight">
+                  {item.product.name}
+                </p>
+                <p className="text-violet-600 font-black text-lg">
+                  ${lineTotal.toFixed(2)}
+                </p>
+              </div>
 
-              {/* Decrease */}
-              <button
-                onClick={() => onDecrease(item.product.id)}
-                className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                –
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center bg-violet-100 rounded-xl p-1 border border-violet-200">
+                  <button
+                    onClick={() => onDecrease(item.product.id)}
+                    className="w-10 h-10 flex items-center justify-center bg-white text-violet-600 rounded-lg font-black text-xl hover:bg-violet-600 hover:text-white transition-all active:scale-90 shadow-sm"
+                  >
+                    –
+                  </button>
+                  <span className="w-10 text-center font-black text-slate-800 text-lg tabular-nums">
+                    {item.quantity}
+                  </span>
+                  <button
+                    onClick={() => onIncrease(item.product.id)}
+                    className="w-10 h-10 flex items-center justify-center bg-white text-violet-600 rounded-lg font-black text-xl hover:bg-violet-600 hover:text-white transition-all active:scale-90 shadow-sm"
+                  >
+                    +
+                  </button>
+                </div>
 
-              {/* Quantity */}
-              <span className="w-8 text-center">{item.quantity}</span>
-
-              {/* Increase */}
-              <button
-                onClick={() => onIncrease(item.product.id)}
-                className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                +
-              </button>
-
-              {/* Remove */}
-              <button
-                onClick={() => onRemove(item.product.id)}
-                className="px-2 py-1 text-red-600 hover:text-red-800"
-              >
-                🗑️
-              </button>
-            </div>
-          </li>
-        ))}
+                <button
+                  onClick={() => onRemove(item.product.id)}
+                  className="w-10 h-10 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-75"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  </svg>
+                </button>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

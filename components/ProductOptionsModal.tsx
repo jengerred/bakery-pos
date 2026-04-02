@@ -1,113 +1,113 @@
 "use client";
 
-/* -------------------------------------------------------
-   🧺 Product Type
-------------------------------------------------------- */
+import { useState, useEffect } from "react";
 import { Product } from "../lib/products";
 
-/* -------------------------------------------------------
-   🪟 ProductOptionsModal (Cashier-Side)
-   🎨 UPDATED: Support for Lilac Brand theme and Dark Mode.
-------------------------------------------------------- */
 type ProductOptionsModalProps = {
   product: Product;
-  quantity: number;
+  quantity: number; 
+  priceOverride?: number; 
   existsInCart: boolean;
   onClose: () => void;
-  onSave: (product: Product, newQty: number) => void;
+  onSave: (product: Product, newQty: number, price?: number) => void;
   onDelete: (product: Product) => void;
 };
 
 export default function ProductOptionsModal({
   product,
   quantity,
+  priceOverride,
   existsInCart,
   onClose,
   onSave,
   onDelete,
 }: ProductOptionsModalProps) {
+  // Local state to manage quantity within the modal before saving
+  const [localQty, setLocalQty] = useState(quantity || 1);
+
+  // Sync local quantity if the prop changes (e.g., item added multiple times)
+  useEffect(() => {
+    setLocalQty(quantity || 1);
+  }, [quantity]);
 
   if (!product) return null;
 
+  const finalPrice = priceOverride !== undefined ? priceOverride : product.price;
+
   return (
-    /* Overlay uses a darker backdrop for better focus */
     <div className="fixed inset-0 bg-violet-900/60 backdrop-blur-sm flex items-center justify-center z-50 transition-all">
       
-      {/* 🎯 MAIN MODAL CONTAINER
-          Added dark:bg-slate-900 and dark:border-slate-800 
-      */}
-      <div className="bg-white dark:bg-violet-100 p-8 rounded-3xl w-96 shadow-2xl border border-slate-100 dark:border-slate-800 transition-colors duration-500">
+      {/* 🎯 MAIN MODAL CONTAINER */}
+      <div className="bg-white dark:bg-slate-900 p-10 rounded-[3.5rem] w-[440px] shadow-2xl border border-white/10 transition-all">
 
         {/* 🏷️ PRODUCT HEADER */}
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-tight mb-4">
             {product.name}
           </h2>
-          <p className="text-brand dark:text-brand-light font-bold text-lg">
-            ${product.price.toFixed(2)}
-          </p>
-        </div>
-
-        {/* 🔢 QUANTITY SELECTOR 
-            Updated with larger touch targets for the cashier
-        */}
-        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl mb-8">
-          <div className="flex items-center justify-between">
-            <span className="font-bold text-slate-500 dark:text-slate-400 uppercase text-xs tracking-widest">
-              Quantity
-            </span>
-
-            <div className="flex items-center gap-6">
-              <button
-                onClick={() => onSave(product, Math.max(1, quantity - 1))}
-                className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl font-bold text-xl hover:border-brand transition-colors dark:text-white"
-              >
-                –
-              </button>
-
-              <span className="text-2xl font-black w-8 text-center dark:text-white">
-                {quantity}
-              </span>
-
-              <button
-                onClick={() => onSave(product, quantity + 1)}
-                className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl font-bold text-xl hover:border-brand transition-colors dark:text-white"
-              >
-                +
-              </button>
-            </div>
+          
+          <div className="inline-block px-10 py-3 bg-violet-100 dark:bg-violet-900/30 rounded-2xl border-2 border-violet-200 dark:border-violet-800">
+            <p className="text-violet-600 dark:text-violet-400 font-black text-4xl">
+              ${(finalPrice * localQty).toFixed(2)}
+            </p>
           </div>
         </div>
 
-        {/* 🗑️ ACTION BUTTONS */}
-        <div className="flex gap-4 items-center">
-          
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold transition-colors"
-          >
-            Cancel
-          </button>
+        {/* 🔢 QUICK QUANTITY UPDATER (Only shows if updating existing item) */}
+        {existsInCart && (
+          <div className="bg-violet-50 dark:bg-violet-900/20 p-6 rounded-[2rem] mb-8 border border-violet-100 dark:border-violet-800">
+            <div className="flex items-center justify-between">
+              <span className="font-black text-violet-400 uppercase text-xs tracking-widest">Quantity</span>
+              <div className="flex items-center gap-6">
+                <button
+                  onClick={() => setLocalQty(Math.max(1, localQty - 1))}
+                  className="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-800 border-2 border-violet-200 rounded-xl font-black text-2xl text-violet-600 active:scale-90 transition-all shadow-sm"
+                >
+                  –
+                </button>
+                <span className="text-3xl font-black w-8 text-center text-slate-800 dark:text-white tabular-nums">
+                  {localQty}
+                </span>
+                <button
+                  onClick={() => setLocalQty(localQty + 1)}
+                  className="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-800 border-2 border-violet-200 rounded-xl font-black text-2xl text-violet-600 active:scale-90 transition-all shadow-sm"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-          {existsInCart && (
-            <button
-              onClick={() => onDelete(product)}
-              className="px-4 py-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-bold transition-all"
-            >
-              Remove
-            </button>
-          )}
-
-          {/* 🟣 THE LILAC BRAND BUTTON */}
+        {/* 🛒 ACTION BUTTONS */}
+        <div className="flex flex-col gap-4">
           <button
             onClick={() => {
-              onSave(product, quantity);
+              onSave(product, localQty, finalPrice);
               onClose();
             }}
-            className="flex-1 py-4 bg-brand hover:bg-brand-hover text-white rounded-2xl font-black text-lg shadow-lg shadow-brand/20 active:scale-95 transition-all"
+            className="w-full py-6 bg-violet-600 hover:bg-violet-700 text-white rounded-[1.5rem] font-black text-2xl shadow-xl shadow-violet-600/40 active:scale-95 transition-all uppercase tracking-widest"
           >
-            {existsInCart ? "Update" : "Add to Order"}
+            {existsInCart ? "Update Order" : "Add to Order"}
           </button>
+
+          <div className="flex gap-4 mt-2">
+            <button
+              onClick={onClose}
+              className="flex-1 py-4 text-slate-400 hover:text-slate-600 font-black uppercase text-xs tracking-[0.2em] transition-colors"
+            >
+              Cancel
+            </button>
+
+            {existsInCart && (
+              <button
+                onClick={() => onDelete(product)}
+                className="flex-1 py-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-2xl font-black uppercase text-xs tracking-[0.2em] transition-all"
+              >
+                Delete
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

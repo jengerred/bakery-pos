@@ -1,7 +1,7 @@
 "use client";
 
 /* -------------------------------------------------------
-   📦 React + Hooks
+   📦 React + Stripe Dependencies
 ------------------------------------------------------- */
 import { useState, useEffect } from "react";
 import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -14,8 +14,11 @@ import { Product } from "../lib/products";
 import { useTerminalSimulation } from "../hooks/useTerminalSimulation";
 
 type CheckoutModalProps = {
-  order: { product: Product; quantity: number }[];
+  /** The current items in the cart, including specialized bulk pricing */
+  order: { product: Product; quantity: number; overridePrice?: number }[];
+  /** State and controls for the simulated card reader hardware */
   terminal: ReturnType<typeof useTerminalSimulation>;
+  /** If true, the UI skips method selection and forces Terminal mode */
   forceReaderMode?: boolean;
   onClose: () => void;
   onComplete: (data: {
@@ -27,16 +30,11 @@ type CheckoutModalProps = {
   }) => void;
 };
 
-/* -------------------------------------------------------
-   🧱 CheckoutModal
-   The cashier's payment processing interface.
-   
-   Responsibilities:
-   - Handle payment method selection (Cash vs. Card).
-   - Sync with physical/simulated reader hardware via events.
-   - Process manual card entries via Stripe.
-   - Auto-calculate totals and change for cash transactions.
-------------------------------------------------------- */
+/**
+ * CheckoutModal
+ * Side-panel interface for processing final payments.
+ * Handles Cash, Manual Card Entry (Stripe), and Physical Terminal Sync.
+ */
 export default function CheckoutModal({
   order,
   terminal,
@@ -48,36 +46,37 @@ export default function CheckoutModal({
   const elements = useElements();
 
   /* -------------------------------------------------------
-     📝 Internal State
+     📝 Payment Logic State
   ------------------------------------------------------- */
   const [paymentType, setPaymentType] = useState<"cash" | "credit" | "debit">("cash");
   const [cardEntryMethod, setCardEntryMethod] = useState<"manual" | "terminal">("manual");
   const [cashTendered, setCashTendered] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // Status for the cashier's hardware monitoring ribbon
-  type CashierReaderStatus = "connected" | "waiting" | "collecting" | "processing" | "approved" | null;
-  const [readerStatus, setReaderStatus] = useState<CashierReaderStatus>(null);
+  const [readerStatus, setReaderStatus] = useState<string | null>(null);
 
   /* -------------------------------------------------------
-     🧮 Totals Calculation
+     🧮 Dynamic Totals Calculation (Fixed Tax Logic)
+     Calculates tax ONLY on items marked as taxable: true.
   ------------------------------------------------------- */
-  const subtotal = order.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const tax = subtotal * 0.06;
+  
+  // 1. Calculate overall subtotal
+  const subtotal = order.reduce((sum, item) => {
+    const activePrice = item.overridePrice !== undefined ? item.overridePrice : item.product.price;
+    return sum + (activePrice * item.quantity);
+  }, 0);
+
+  // 2. Calculate subtotal for taxable items only
+  const taxableSubtotal = order.reduce((sum, item) => {
+    if (item.product.taxable) {
+      const activePrice = item.overridePrice !== undefined ? item.overridePrice : item.product.price;
+      return sum + (activePrice * item.quantity);
+    }
+    return sum;
+  }, 0);
+
+  const tax = taxableSubtotal * 0.06; // Michigan Sales Tax applied correctly
   const total = subtotal + tax;
   const changeDue = Number(cashTendered) > 0 ? Number(cashTendered) - total : 0;
-
-  /* -------------------------------------------------------
-     🎯 Auto-Select Logic (Reader Sync)
-     When the customer continues past the rewards screen on the 
-     reader, the Cashier UI automatically flips to Card mode.
-  ------------------------------------------------------- */
-  useEffect(() => {
-    if (forceReaderMode) {
-      setPaymentType("credit");
-      setCardEntryMethod("terminal");
-    }
-  }, [forceReaderMode]);
 
   /* -------------------------------------------------------
      📡 Hardware Event Listeners
@@ -86,43 +85,34 @@ export default function CheckoutModal({
     function handleReaderStatus(e: any) { 
       const status = e.detail.status;
       setReaderStatus(status);
-
-      // Trigger cashier UI tab flip based on hardware signal
+      
       if (status === "collecting" || status === "processing") {
         setPaymentType("credit");
         setCardEntryMethod("terminal");
       }
     }
     
-    function handleReaderStarted() { 
-      setPaymentType("credit");
-      setCardEntryMethod("terminal");
-      setReaderStatus("collecting");
-    }
-
     function handleReaderComplete(e: any) {
-      const { paymentType: pType, cardEntryMethod: cMethod } = e.detail;
-      // Show approved state briefly before finalizing
       setReaderStatus("approved");
       setTimeout(() => {
-        onComplete({ paymentType: pType, cardEntryMethod: cMethod });
+        onComplete({ 
+          paymentType: e.detail.paymentType, 
+          cardEntryMethod: e.detail.cardEntryMethod 
+        });
       }, 1200);
     }
 
     window.addEventListener("reader-status-update", handleReaderStatus);
-    window.addEventListener("reader-payment-started", handleReaderStarted);
     window.addEventListener("reader-payment-complete", handleReaderComplete);
 
     return () => {
       window.removeEventListener("reader-status-update", handleReaderStatus);
-      window.removeEventListener("reader-payment-started", handleReaderStarted);
       window.removeEventListener("reader-payment-complete", handleReaderComplete);
-      terminal.reset();
     };
-  }, [onComplete, terminal]);
+  }, [onComplete]);
 
   /* -------------------------------------------------------
-     💳 Payment Processing Logic
+     💳 Manual Payment Handlers
   ------------------------------------------------------- */
   async function handleManualCardPayment() {
     if (!stripe || !elements) return;
@@ -135,7 +125,7 @@ export default function CheckoutModal({
 
     const { clientSecret, error } = await res.json();
     if (error || !clientSecret) {
-      alert("Payment error: " + error);
+      toast.error("Payment error: " + error);
       setLoading(false);
       return;
     }
@@ -146,20 +136,17 @@ export default function CheckoutModal({
 
     setLoading(false);
     if (result.error) {
-      alert(result.error.message);
+      toast.error(result.error.message || "Payment Failed");
       return;
     }
 
     if (result.paymentIntent?.status === "succeeded") {
       toast.success("Payment successful!");
-      setTimeout(() => {
-        onComplete({
-          paymentType,
-          cardEntryMethod: "manual",
-          stripePaymentId: result.paymentIntent.id,
-        });
-        window.dispatchEvent(new CustomEvent("reader-show-thank-you"));
-      }, 600);
+      onComplete({
+        paymentType,
+        cardEntryMethod: "manual",
+        stripePaymentId: result.paymentIntent.id,
+      });
     }
   }
 
@@ -172,46 +159,37 @@ export default function CheckoutModal({
     window.dispatchEvent(new CustomEvent("reader-show-thank-you"));
   }
 
-  async function handleComplete() {
-    if (paymentType === "credit" || paymentType === "debit") {
-      if (cardEntryMethod === "terminal") return; // Reader handles its own completion
-      return handleManualCardPayment();
-    }
-    return handleCashPayment();
-  }
-
   /* -------------------------------------------------------
      🎨 UI Render
   ------------------------------------------------------- */
   return (
-    <div className="fixed top-0 left-0 h-full w-[420px] bg-white shadow-2xl z-50 p-6 overflow-y-auto">
-      <h2 className="text-xl font-semibold mb-4 text-slate-800 uppercase tracking-tight">Checkout</h2>
+    <div className="fixed top-0 left-0 h-full w-[420px] bg-white shadow-2xl z-50 p-8 flex flex-col border-r border-violet-100">
+      <h2 className="text-2xl font-black mb-6 text-violet-900 uppercase tracking-tighter">Checkout</h2>
 
-      {/* 📡 Hardware Status Ribbon */}
       {readerStatus && (
-        <div className="mb-4 p-3 border rounded bg-slate-50 border-slate-200 transition-all">
-          <p className="font-bold text-[10px] uppercase tracking-widest text-slate-400 mb-1">Reader Status</p>
-          <p className={`text-sm font-bold ${readerStatus === 'approved' ? 'text-green-600' : 'text-blue-600'}`}>
-            {(readerStatus === "waiting" || readerStatus === "connected") && "Waiting for customer…"}
-            {readerStatus === "collecting" && "Collecting payment…"}
-            {readerStatus === "processing" && "Processing…"}
-            {readerStatus === "approved" && "Payment Approved!"}
+        <div className={`mb-6 p-4 rounded-2xl border-2 transition-all ${
+          readerStatus === 'approved' ? 'bg-green-50 border-green-200' : 'bg-violet-50 border-violet-200'
+        }`}>
+          <p className="font-black text-[10px] uppercase tracking-widest text-violet-400 mb-1">Terminal Status</p>
+          <p className={`text-sm font-black uppercase ${readerStatus === 'approved' ? 'text-green-600' : 'text-violet-600'}`}>
+            {readerStatus === "waiting" && "Waiting for customer…"}
+            {readerStatus === "collecting" && "Tap / Insert Card…"}
+            {readerStatus === "approved" && "✔ Payment Approved"}
           </p>
         </div>
       )}
 
-      {/* 📑 Payment Method Selector */}
-      <div className="mb-6">
-        <label className="block text-[10px] font-bold text-slate-500 mb-2 uppercase">Payment Method</label>
-        <div className="grid grid-cols-3 gap-2">
+      <div className="mb-8">
+        <label className="block text-[10px] font-black text-violet-400 mb-3 uppercase tracking-widest text-center">Select Payment Method</label>
+        <div className="grid grid-cols-3 gap-3">
           {["cash", "credit", "debit"].map((type) => (
             <button
               key={type}
               onClick={() => setPaymentType(type as any)}
-              className={`py-2 px-1 border rounded text-sm font-bold capitalize transition-all ${
+              className={`py-4 rounded-2xl text-xs font-black uppercase transition-all border-2 ${
                 paymentType === type 
-                ? "bg-slate-800 text-white border-slate-800 shadow-md" 
-                : "bg-white text-slate-600 border-slate-200"
+                ? "bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-600/30" 
+                : "bg-white text-violet-400 border-violet-100 hover:border-violet-300"
               }`}
             >
               {type}
@@ -220,41 +198,44 @@ export default function CheckoutModal({
         </div>
       </div>
 
-      {/* 💵 Cash Payment View */}
       {paymentType === "cash" && (
-        <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-100 animate-in fade-in zoom-in-95">
-          <label className="block mb-2 text-xs font-bold text-green-800 uppercase">Cash Tendered</label>
+        <div className="mb-8 p-6 bg-violet-50 rounded-[2rem] border-2 border-violet-100 animate-in slide-in-from-bottom-4 duration-300">
+          <label className="block mb-3 text-xs font-black text-violet-900 uppercase tracking-widest">Amount Tendered</label>
           <div className="relative">
-            <span className="absolute left-3 top-2 text-green-600 font-bold">$</span>
+            <span className="absolute left-4 top-3 text-violet-400 font-black text-xl">$</span>
             <input
               type="number"
               autoFocus
               value={cashTendered}
               onChange={(e) => setCashTendered(e.target.value)}
-              className="pl-7 pr-3 py-2 w-full border border-green-200 rounded text-lg font-mono outline-none"
+              className="pl-10 pr-4 py-4 w-full bg-white border-2 border-violet-200 rounded-xl text-2xl font-black text-violet-600 outline-none focus:border-violet-500 transition-all"
               placeholder="0.00"
             />
           </div>
+          {changeDue > 0 && (
+            <div className="mt-4 pt-4 border-t border-violet-200 flex justify-between items-center">
+              <span className="text-xs font-black text-violet-400 uppercase">Change Due:</span>
+              <span className="text-2xl font-black text-green-600">${changeDue.toFixed(2)}</span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* 💳 Card Payment View */}
       {(paymentType === "credit" || paymentType === "debit") && (
-        <div className="mb-6 space-y-4 animate-in fade-in zoom-in-95">
-          {/* Entry Method Toggle */}
-          <div className="flex bg-slate-100 p-1 rounded-lg">
+        <div className="mb-8 space-y-4">
+          <div className="flex bg-violet-50 p-1.5 rounded-2xl border-2 border-violet-100">
             <button
               onClick={() => setCardEntryMethod("manual")}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
-                cardEntryMethod === "manual" ? "bg-white shadow text-slate-800" : "text-slate-500"
+              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${
+                cardEntryMethod === "manual" ? "bg-white shadow-md text-violet-600" : "text-violet-400"
               }`}
             >
               MANUAL
             </button>
             <button
               onClick={() => setCardEntryMethod("terminal")}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
-                cardEntryMethod === "terminal" ? "bg-white shadow text-slate-800" : "text-slate-500"
+              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${
+                cardEntryMethod === "terminal" ? "bg-white shadow-md text-violet-600" : "text-violet-400"
               }`}
             >
               READER
@@ -262,46 +243,37 @@ export default function CheckoutModal({
           </div>
 
           {cardEntryMethod === "manual" ? (
-            <div className="p-3 border rounded-lg border-slate-200 bg-white">
-              <label className="block mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Card Details</label>
-              <CardElement />
+            <div className="p-4 border-2 rounded-2xl border-violet-100 bg-white">
+              <CardElement options={{ style: { base: { fontSize: '18px', fontWeight: '700' } } }} />
             </div>
           ) : (
-            <div className={`p-6 border-2 border-dashed rounded-xl text-center transition-colors duration-500 ${
-              readerStatus === 'approved' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'
-            }`}>
-              <p className={`text-sm font-medium mb-1 italic ${
-                readerStatus === 'approved' ? 'text-green-800' : 'text-blue-800'
-              }`}>
-                Customer Interaction Required
-              </p>
-              <p className={`text-xs uppercase font-black tracking-widest ${
-                readerStatus === 'approved' ? 'text-green-600' : 'text-blue-600 animate-pulse'
-              }`}>
-                {(readerStatus === "waiting" || readerStatus === "connected" || !readerStatus) && "Waiting for tap..."}
-                {(readerStatus === "collecting" || readerStatus === "processing") && "Processing payment..."}
-                {readerStatus === "approved" && "Payment Approved!"}
+            <div className="p-8 border-2 border-dashed rounded-[2rem] text-center bg-violet-50 border-violet-200">
+              <p className="text-violet-600 font-black uppercase text-xs tracking-tighter animate-pulse">
+                Follow instructions on Reader
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* 🔘 Footer Actions */}
-      <div className="mt-auto space-y-3">
-        {/* Only show "Complete" button for non-automated payment methods */}
+      <div className="mt-auto space-y-4">
+        <div className="flex justify-between items-end mb-4 px-2">
+            <span className="text-xs font-black text-violet-400 uppercase">Total Due</span>
+            <span className="text-4xl font-black text-violet-900">${total.toFixed(2)}</span>
+        </div>
+        
         {cardEntryMethod !== "terminal" && (
           <button
-            onClick={handleComplete}
+            onClick={() => paymentType === 'cash' ? handleCashPayment() : handleManualCardPayment()}
             disabled={loading || (paymentType === 'cash' && !cashTendered)}
-            className="w-full py-4 bg-green-600 text-white rounded-xl font-black text-lg hover:bg-green-700 transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg uppercase"
+            className="w-full py-6 bg-violet-600 text-white rounded-[1.5rem] font-black text-xl hover:bg-violet-700 transition-all active:scale-95 shadow-xl shadow-violet-600/30 uppercase tracking-widest"
           >
             {loading ? "Processing..." : "Complete Order"}
           </button>
         )}
         <button
           onClick={onClose}
-          className="w-full py-3 text-slate-400 font-bold uppercase text-[10px] tracking-widest text-center hover:text-slate-600"
+          className="w-full py-2 text-violet-300 font-black uppercase text-[10px] tracking-widest hover:text-red-400 transition-colors"
         >
           Cancel Transaction
         </button>

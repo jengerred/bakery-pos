@@ -1,6 +1,5 @@
 /* -------------------------------------------------------
    🧺 Product Type
-   Used to type each item in the order.
 ------------------------------------------------------- */
 import { Product } from "./products";
 
@@ -8,37 +7,50 @@ import { Product } from "./products";
    🧮 calculateTotals
    Computes subtotal, tax, and total for the current order.
 
-   Responsibilities:
-   - subtotal: sum(price × quantity)
-   - tax: 6% Michigan sales tax
-   - total: subtotal + tax
+   TAX LOGIC (Grand Rapids, MI):
+   - Subtotal: Sum of (price × quantity) for all items.
+   - Tax: 6% applied ONLY to items marked 'taxable: true'.
+   - Total: Subtotal + calculated tax.
 
    NOTE:
-   - Pure function (no side effects)
-   - Used by cashier checkout + receipt generation
-   - Keeps business logic out of UI components
+   - Bakery items (cookies/brownies) are 0% tax in MI.
+   - Prepared beverages are 6% tax in MI.
 ------------------------------------------------------- */
 export function calculateTotals(
-  order: { product: Product; quantity: number }[]
+  order: { product: Product; quantity: number; overridePrice?: number }[]
 ) {
   /* -------------------------------------------------------
      💵 Subtotal
-     Sum of all line items before tax.
+     Calculates the raw total of all items in the cart.
   ------------------------------------------------------- */
-  const subtotal = order.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  );
+  const subtotal = order.reduce((sum, item) => {
+    // Use overridePrice if present (from the Dozen buttons), else use base price
+    const unitPrice = item.overridePrice ?? item.product.price;
+    return sum + unitPrice * item.quantity;
+  }, 0);
 
   /* -------------------------------------------------------
-     🧾 Tax (6% Michigan)
+     🧾 Tax (Selective 6% Michigan Sales Tax)
+     Only calculates tax for items where taxable is true.
   ------------------------------------------------------- */
-  const tax = subtotal * 0.06;
+  const taxableAmount = order.reduce((sum, item) => {
+    if (item.product.taxable) {
+      const unitPrice = item.overridePrice ?? item.product.price;
+      return sum + unitPrice * item.quantity;
+    }
+    return sum;
+  }, 0);
+
+  const tax = taxableAmount * 0.06;
 
   /* -------------------------------------------------------
      💰 Final Total
   ------------------------------------------------------- */
   const total = subtotal + tax;
 
-  return { subtotal, tax, total };
+  return { 
+    subtotal, 
+    tax, 
+    total 
+  };
 }

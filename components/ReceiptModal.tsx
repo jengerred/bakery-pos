@@ -2,112 +2,92 @@
 
 /* -------------------------------------------------------
    🧾 Types
-   CompletedOrder includes:
-   - items
-   - totals
-   - payment details
-   - customer info
 ------------------------------------------------------- */
 import { CompletedOrder } from "../context/OrderHistoryContext";
 
-/* -------------------------------------------------------
-   🧱 ReceiptModal (Cashier-Side)
-   Displays the final receipt after checkout.
-
-   Responsibilities:
-   - Show order items, totals, and payment details
-   - Show customer name (if available)
-   - Show cashier-only banner indicating receipt choice
-   - Allow printing (only when permitted)
-   - Allow cashier to close the modal
-
-   NOTE:
-   - This is the CASHIER receipt view.
-   - The reader has its own receipt-choice UI.
-   - The print button is hidden during printing (print:hidden).
-------------------------------------------------------- */
 type ReceiptModalProps = {
   order: CompletedOrder;
   receiptMethod: "print" | "email" | "text" | "none" | null;
   onClose: () => void;
 };
 
-export default function ReceiptModal({
-  order,
-  receiptMethod,
-  onClose,
-}: ReceiptModalProps) {
-
+export default function ReceiptModal({ order, receiptMethod, onClose }: ReceiptModalProps) {
+  
   /* -------------------------------------------------------
-     🧮 Totals
+     🧮 Financial Logic (Michigan Tax Exempt)
   ------------------------------------------------------- */
   const subtotal = order.items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + (item.product.price * item.quantity),
     0
   );
-  const tax = subtotal * 0.06;
+
+  // Calculates the portion of the order that is actually taxable (prepped food/drink)
+  const taxableSubtotal = order.items.reduce((sum, item) => {
+    return item.product.taxable ? sum + (item.product.price * item.quantity) : sum;
+  }, 0);
+
+  const tax = taxableSubtotal * 0.06;
   const total = subtotal + tax;
 
-  /* -------------------------------------------------------
-     🖨️ Print Button Logic
-     Enabled only when:
-     - Customer chose print
-     - OR no account / timeout (receiptMethod === null)
-  ------------------------------------------------------- */
-  const printEnabled =
-    receiptMethod === "print" || receiptMethod === null;
+  const printEnabled = receiptMethod === "print" || receiptMethod === null;
 
   return (
-    <div id="receipt-print-area" className="h-full w-full">
-      <div className="bg-white p-4">
-
-        {/* -------------------------------------------------------
-           🧾 CASHIER-ONLY RECEIPT METHOD BANNER
-           Hidden during printing.
-        ------------------------------------------------------- */}
+    <div className="h-full w-full flex flex-col bg-white dark:bg-slate-900">
+      
+      {/* ⚙️ GUI BANNER (Top) */}
+      <div className="p-6 print:hidden">
         {receiptMethod && (
-          <div className="mb-4 p-2 bg-gray-100 border rounded text-sm text-gray-700 print:hidden">
-            {receiptMethod === "print" && "Customer chose: Print Receipt"}
-            {receiptMethod === "email" && "Customer chose: Email Receipt"}
-            {receiptMethod === "text" && "Customer chose: Text Receipt"}
-            {receiptMethod === "none" && "Customer declined a receipt"}
+          <div className="p-4 bg-violet-600 rounded-2xl shadow-lg shadow-violet-600/20 text-center animate-in fade-in slide-in-from-top-2">
+            <p className="text-[11px] font-black text-violet-100 uppercase tracking-[0.25em]">
+               {receiptMethod === "print" && "🖨️ Customer chose: Print Receipt"}
+               {receiptMethod === "email" && "📧 Receipt sent to Email"}
+               {receiptMethod === "text" && "📱 Receipt sent to Text"}
+               {receiptMethod === "none" && "🚫 No Receipt Requested"}
+            </p>
           </div>
         )}
+      </div>
 
-        {/* -------------------------------------------------------
-           🧾 RECEIPT HEADER
-        ------------------------------------------------------- */}
-        <h2 className="text-xl font-semibold mb-2">Receipt</h2>
+      {/* 🧾 THE AUTHENTIC PAPER RECEIPT */}
+      <div id="receipt-print-area" className="bg-white px-8 pb-8 text-black">
+        
+        {/* Bakery Header */}
+        <div className="text-center mb-6 pt-2">
+          <h1 className="text-sm font-bold leading-tight">Veronica Bowens</h1>
+          <h2 className="text-xl font-black uppercase leading-tight">MOTHERS SECRET RECIPE</h2>
+          <p className="text-sm font-bold uppercase tracking-[0.2em]">Bakery</p>
+        </div>
+
+        <div className="border-t border-black mb-4" />
 
         {order.customerName && (
-          <p className="text-sm text-gray-700 mb-4">
-            <strong>Customer:</strong> {order.customerName}
+          <p className="text-sm mb-4">
+            <span className="font-bold uppercase text-[10px]">Customer:</span> {order.customerName}
           </p>
         )}
 
-        <p className="text-sm text-gray-500">
-          Order ID: {order.id.slice(0, 8)}
-        </p>
-        <p className="text-sm text-gray-500 mb-4">
-          {new Date(order.timestamp).toLocaleString()}
-        </p>
+        <div className="text-[10px] mb-6 space-y-1">
+          <p>ID: {order.id.slice(0, 8).toUpperCase()}</p>
+          <p>{new Date(order.timestamp).toLocaleString()}</p>
+        </div>
 
-        {/* -------------------------------------------------------
-           🛒 LINE ITEMS
-        ------------------------------------------------------- */}
-        <ul className="space-y-2 mb-4">
-          {order.items.map((item) => (
-            <li key={item.product.id} className="flex justify-between">
-              <span>{item.quantity}× {item.product.name}</span>
-              <span>${(item.product.price * item.quantity).toFixed(2)}</span>
+        {/* Items Table with (E) Indicators */}
+        <ul className="space-y-3 mb-6">
+          {order.items.map((item, idx) => (
+            <li key={idx} className="flex justify-between text-sm items-start">
+              <span className="max-w-[75%] leading-tight">
+                {item.quantity}× {item.product.name}
+                {!item.product.taxable && (
+                  <span className="text-[9px] ml-1 font-bold opacity-70">(E)</span>
+                )}
+              </span>
+              <span className="font-bold tabular-nums">${(item.product.price * item.quantity).toFixed(2)}</span>
             </li>
           ))}
         </ul>
 
-        {/* -------------------------------------------------------
-           💵 TOTALS
-        ------------------------------------------------------- */}
-        <div className="space-y-1 mb-4">
+        {/* Financial Summary */}
+        <div className="border-t border-black pt-4 space-y-1 text-sm mb-6">
           <div className="flex justify-between">
             <span>Subtotal</span>
             <span>${subtotal.toFixed(2)}</span>
@@ -118,68 +98,59 @@ export default function ReceiptModal({
             <span>${tax.toFixed(2)}</span>
           </div>
 
-          <div className="flex justify-between font-semibold text-lg">
-            <span>Total</span>
-            <span>${total.toFixed(2)}</span>
+          <div className="flex justify-between font-bold text-xl mt-2 border-t border-black pt-2">
+            <span>TOTAL</span>
+            <span className="tabular-nums">${total.toFixed(2)}</span>
           </div>
         </div>
 
-        {/* -------------------------------------------------------
-           💳 PAYMENT DETAILS
-        ------------------------------------------------------- */}
-        <div className="border-t pt-3 mt-4 text-sm space-y-1">
-          <p className="font-semibold mb-1">Payment Details</p>
-
-          {order.paymentType === "cash" && (
+        {/* Payment Info */}
+        <div className="text-[10px] space-y-1 uppercase">
+          <p className="font-bold mb-1 border-b border-gray-100 pb-1">Payment Info</p>
+          <p>Method: {order.paymentType}</p>
+          {order.paymentType === "cash" ? (
             <>
-              <p>Payment Method: Cash</p>
-              <p>Cash Tendered: ${order.cashTendered?.toFixed(2)}</p>
-              <p>Change Given: ${order.changeGiven?.toFixed(2)}</p>
+              <p>Tendered: ${order.cashTendered?.toFixed(2)}</p>
+              <p>Change: ${order.changeGiven?.toFixed(2)}</p>
             </>
+          ) : (
+            <p>Entry: {order.cardEntryMethod === "terminal" ? "Chip/Tap/Swipe" : "Manual"}</p>
           )}
 
-          {order.paymentType === "credit" && (
-            <>
-              <p>Payment Method: Credit Card</p>
-              {order.cardEntryMethod === "manual" && <p>Entry: Manual</p>}
-              {order.cardEntryMethod === "terminal" && <p>Entry: Chip/Tap/Swipe</p>}
-            </>
-          )}
+          {/* Centered Thank You Section */}
+          <div className="text-center pt-10 m-0">
+            <p className="text-lg font-bold tracking-widest uppercase m-0 leading-none">
+              THANK YOU 😊
+            </p>
+            <div className="text-[10px]leading-tight uppercase tracking-tight mt-1">
+              We appreciate your business <br/>
+              Have a wonderful day
+            </div>
+          </div>
 
-          {order.paymentType === "debit" && (
-            <>
-              <p>Payment Method: Debit Card</p>
-              {order.cardEntryMethod === "manual" && <p>Entry: Manual</p>}
-              {order.cardEntryMethod === "terminal" && <p>Entry: Chip/Tap/Swipe</p>}
-            </>
-          )}
+          {/* Fixed Footer Readability */}
+          <div className="text-[9px] mt-8 opacity-80 text-center uppercase font-bold italic border-t border-gray-100 pt-2">
+            (E) = Michigan Tax Exempt Food Item
+          </div>
         </div>
+      </div>
 
-        {/* -------------------------------------------------------
-           🖨️ PRINT + CLOSE BUTTONS
-           Hidden during printing.
-        ------------------------------------------------------- */}
-        <div className="flex justify-end mt-6 print:hidden">
-          <button
-            onClick={() => window.print()}
-            disabled={!printEnabled}
-            className={`px-4 py-2 mr-2 rounded text-white ${
-              printEnabled
-                ? "bg-gray-700 hover:bg-gray-800"
-                : "bg-gray-400 cursor-not-allowed"
-            }`}
-          >
-            Print Receipt
-          </button>
+      {/* ⚙️ GUI CONTROLS (Bottom) */}
+      <div className="mt-auto p-6 space-y-3 print:hidden bg-violet-50/30 border-t border-violet-100">
+        <button
+          onClick={() => window.print()}
+          disabled={!printEnabled}
+          className="w-full py-5 bg-slate-900 text-white rounded-[1.5rem] font-black uppercase tracking-widest text-sm hover:bg-black transition-all active:scale-95 disabled:opacity-30 shadow-lg"
+        >
+          Print Receipt
+        </button>
 
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Close
-          </button>
-        </div>
-
+        <button
+          onClick={onClose}
+          className="w-full py-5 bg-violet-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest text-sm hover:bg-violet-700 shadow-xl shadow-violet-600/30 transition-all active:scale-95"
+        >
+          Close
+        </button>
       </div>
     </div>
   );
