@@ -158,7 +158,7 @@ export default function POSGrid({
 
         <div className="grid grid-cols-12 gap-6 items-start">
           <div className="col-span-8">
-            <section className="p-6 border rounded-[2.5rem] bg-black/80  shadow-xl shadow-violet-900 h-[480px] overflow-y-auto custom-scrollbar">
+            <section className="p-6 border rounded-[2.5rem] bg-violet-950/90  shadow-xl shadow-violet-900 h-[480px] overflow-y-auto custom-scrollbar">
               <h2 className="text-xl font-black mb-6 text-violet-300 uppercase tracking-[0.2em] sticky top-0 py-2 z-10">
                 Our Menu
               </h2>
@@ -191,7 +191,7 @@ export default function POSGrid({
 
         {/* 🛒 CHECKOUT SECTION - SHORTER BUTTON HEIGHT */}
         <div className="mt-6">
-          <div className="p-10 pb-12 bg-violet-700 border border-violet-500 rounded-[2.5rem] 0">
+          <div className="p-10 pb-15 bg-violet-950/90 border border-violet-500 rounded-[2.5rem] 0">
               <button
                 onClick={handleBeginCheckout}
                 disabled={isOrderEmpty}

@@ -19,6 +19,7 @@ export type Product = {
    - Prepared drinks would be 6% tax (taxable: true).
 ------------------------------------------------------- */
 export const products: Product[] = [
+  
   // --- Chocolate Chip Cookies ---
   { 
     id: 101, 
