@@ -28,34 +28,64 @@ namespace BakeryBackend.Data
 
         /* -----------------------------------------------------
            DATABASE TABLES
-           -----------------------------------------------------
-           Each DbSet<T> represents a table in the database.
-           EF Core automatically maps the Product model to the
-           "Products" table based on this property.
            ----------------------------------------------------- */
+
+        // Existing table
         public DbSet<Product> Products { get; set; }
+
+        // NEW: Orders table
+        public DbSet<Order> Orders { get; set; }
 
         /* -----------------------------------------------------
            MODEL CONFIGURATION
            -----------------------------------------------------
-           Override this method to configure:
-             - Table names
-             - Column mappings
-             - Relationships (1-to-many, many-to-many)
-             - Default values
-             - Indexes
-             - Constraints
-
-           Currently empty, but ready for future expansion.
+           This is where we map C# models to PostgreSQL tables.
+           We also configure JSONB, column names, relationships,
+           and any custom EF Core behavior.
            ----------------------------------------------------- */
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Example for future:
-            // modelBuilder.Entity<Product>()
-            //     .Property(p => p.SortOrder)
-            //     .HasDefaultValue(0);
+            /* -------------------------------------------------
+               ORDER ENTITY MAPPING
+               -------------------------------------------------
+               Maps the Order model to the "orders" table in
+               Supabase/PostgreSQL.
+
+               Includes:
+               - JSONB mapping for Items
+               - Column name mappings
+               - Nullable vs non-nullable fields
+            ------------------------------------------------- */
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.ToTable("Orders");
+
+                entity.Property(o => o.Id)
+                    .HasColumnName("id");
+
+                entity.Property(o => o.Items)
+                    .HasColumnName("items")
+                    .HasColumnType("jsonb"); // JSONB column in Supabase
+
+                entity.Property(o => o.Subtotal).HasColumnName("subtotal");
+                entity.Property(o => o.Tax).HasColumnName("tax");
+                entity.Property(o => o.Total).HasColumnName("total");
+
+                entity.Property(o => o.PaymentType).HasColumnName("payment_type");
+                entity.Property(o => o.CardEntryMethod).HasColumnName("card_entry_method");
+
+                entity.Property(o => o.CashTendered).HasColumnName("cash_tendered");
+                entity.Property(o => o.ChangeGiven).HasColumnName("change_given");
+
+                entity.Property(o => o.StripePaymentId).HasColumnName("stripe_payment_id");
+
+                entity.Property(o => o.Timestamp).HasColumnName("timestamp");
+
+                entity.Property(o => o.CustomerId).HasColumnName("customer_id");
+                entity.Property(o => o.CustomerName).HasColumnName("customer_name");
+            });
         }
     }
 }

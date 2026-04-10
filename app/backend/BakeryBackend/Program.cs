@@ -28,10 +28,22 @@ builder.Services.AddControllers()
             System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 
-// Register EF Core + PostgreSQL connection
+    // Register EF Core + PostgreSQL connection with dynamic JSON enabled
 builder.Services.AddDbContext<BakeryContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
+{
+    var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(
+        builder.Configuration.GetConnectionString("DefaultConnection")
+    );
+
+    // ⭐ REQUIRED for JSONB serialization of List<OrderItem>
+    dataSourceBuilder.EnableDynamicJson();
+
+    var dataSource = dataSourceBuilder.Build();
+
+    options.UseNpgsql(dataSource);
+});
+
+
 
 // ---------------------------------------------------------
 // CORS POLICY (Allows frontend apps to call this API)
