@@ -2,40 +2,37 @@
 
 /* -------------------------------------------------------
    📦 React
-   Provides context, state, and lifecycle hooks.
 ------------------------------------------------------- */
 import { createContext, useContext, useEffect, useState } from "react";
 
 /* -------------------------------------------------------
    🧺 Product Type
-   Used inside OrderItem.
 ------------------------------------------------------- */
 import { Product } from "@/app/pos/lib/products";
 
 /* -------------------------------------------------------
    🧾 Order Types
-   Exported so POSPage and other components can use them.
 ------------------------------------------------------- */
 export type OrderItem = {
-  product: Product;   // Product purchased
-  quantity: number;   // Quantity purchased
+  product: Product;
+  quantity: number;
 };
 
 export type CompletedOrder = {
-  id: string;                     // Unique order ID
-  items: OrderItem[];             // Line items
-  subtotal: number;               // Pre‑tax amount
-  tax: number;                    // Tax amount
-  total: number;                  // Final total
+  id: string;
+  items: OrderItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
 
-  paymentType: "cash" | "credit" | "debit"; // Payment method
-  cardEntryMethod?: "manual" | "terminal";  // For card payments
+  paymentType: "cash" | "credit" | "debit";
+  cardEntryMethod?: "manual" | "terminal";
 
-  cashTendered?: number;          // For cash payments
-  changeGiven?: number;           // For cash payments
+  cashTendered?: number;
+  changeGiven?: number;
 
-  stripePaymentId?: string;       // For card payments
-  timestamp: number;              // When the order was completed
+  stripePaymentId?: string;
+  timestamp: number;
 
   customerId: string | null;
   customerName: string | null;
@@ -43,12 +40,13 @@ export type CompletedOrder = {
 
 /* -------------------------------------------------------
    🧠 Context Shape
-   Defines what the provider exposes to the app.
 ------------------------------------------------------- */
 type OrderHistoryContextType = {
-  orderHistory: CompletedOrder[];            // All saved orders
-  addOrder: (order: CompletedOrder) => void; // Add a new order
-  clearHistory: () => void;                  // Remove all orders
+  orderHistory: CompletedOrder[];
+  addOrder: (order: CompletedOrder) => Promise<void>;
+  clearHistory: () => Promise<void>;
+  loading: boolean;
+  error: string | null;
 };
 
 /* -------------------------------------------------------
@@ -58,68 +56,89 @@ export const OrderHistoryContext =
   createContext<OrderHistoryContextType | null>(null);
 
 /* -------------------------------------------------------
-   🗂️ OrderHistoryProvider
-   Wraps the POS app and manages persistent order history.
-
-   Responsibilities:
-   - Load order history from localStorage on mount
-   - Save order history to localStorage on updates
-   - Provide addOrder() and clearHistory() helpers
-
-   NOTE:
-   - This context is intentionally simple.
-   - Order history is append‑only except for clearHistory().
+   🗂️ Provider (Backend‑Powered)
 ------------------------------------------------------- */
-export function OrderHistoryProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function OrderHistoryProvider({ children }: { children: React.ReactNode }) {
+  const [orderHistory, setOrderHistory] = useState<CompletedOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const API = process.env.NEXT_PUBLIC_API_URL;
 
   /* -------------------------------------------------------
-     📦 Local State
-  ------------------------------------------------------- */
-  const [history, setHistory] = useState<CompletedOrder[]>([]);
-
-  /* -------------------------------------------------------
-     📥 Load history on mount
+     📥 Load order history from backend on mount
   ------------------------------------------------------- */
   useEffect(() => {
-    const saved = localStorage.getItem("orderHistory");
-    if (saved) {
-      setHistory(JSON.parse(saved));
+    async function load() {
+      try {
+        setLoading(true);
+
+        const res = await fetch(`${API}/orders`);
+        if (!res.ok) throw new Error("Failed to load order history");
+
+        const data = await res.json();
+        setOrderHistory(data);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, []);
+
+    load();
+  }, [API]);
 
   /* -------------------------------------------------------
-     💾 Save history to localStorage
+     ➕ Add order (POST to backend)
   ------------------------------------------------------- */
-  const saveHistory = (orders: CompletedOrder[]) => {
-    localStorage.setItem("orderHistory", JSON.stringify(orders));
-    setHistory(orders);
+  const addOrder = async (order: CompletedOrder) => {
+    try {
+      const res = await fetch(`${API}/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(order),
+      });
+
+      if (!res.ok) throw new Error("Failed to save order");
+
+      const saved = await res.json();
+
+      // Update local state with backend response
+      setOrderHistory((prev) => [...prev, saved]);
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   /* -------------------------------------------------------
-     ➕ Add a completed order
+     🗑️ Clear all orders (backend)
   ------------------------------------------------------- */
-  const addOrder = (order: CompletedOrder) => {
-    const updated = [...history, order];
-    saveHistory(updated);
+  const clearHistory = async () => {
+    try {
+      const res = await fetch(`${API}/orders`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Failed to clear order history");
+
+      setOrderHistory([]);
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   /* -------------------------------------------------------
-     🗑️ Clear all order history
-  ------------------------------------------------------- */
-  const clearHistory = () => {
-    saveHistory([]);
-  };
-
-  /* -------------------------------------------------------
-     🧠 Provide context to children
+     🧠 Provide context
   ------------------------------------------------------- */
   return (
     <OrderHistoryContext.Provider
-      value={{ orderHistory: history, addOrder, clearHistory }}
+      value={{
+        orderHistory,
+        addOrder,
+        clearHistory,
+        loading,
+        error,
+      }}
     >
       {children}
     </OrderHistoryContext.Provider>
@@ -127,16 +146,12 @@ export function OrderHistoryProvider({
 }
 
 /* -------------------------------------------------------
-   🎣 useOrderHistoryContext
-   Hook for accessing the order history context.
-   Ensures it is used inside the provider.
+   🎣 Hook
 ------------------------------------------------------- */
 export function useOrderHistoryContext() {
   const ctx = useContext(OrderHistoryContext);
   if (!ctx) {
-    throw new Error(
-      "useOrderHistoryContext must be used inside OrderHistoryProvider"
-    );
+    throw new Error("useOrderHistoryContext must be used inside OrderHistoryProvider");
   }
   return ctx;
 }
